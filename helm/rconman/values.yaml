@@ -35,7 +35,7 @@ config:
     sessionExpiry: "24h"
   log:
     level: "info"
-    format: "text"
+    format: "json"
   store:
     path: "/data/rconman.db"
     retention: "30d"
