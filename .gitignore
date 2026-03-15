@@ -1,0 +1,24 @@
+.superpowers/
+.worktrees/
+
+# rconman-specific patterns
+rconman
+rconman.db
+*.db-wal
+*.db-shm
+web/node_modules/
+web/static/app.css
+dist/
+*.local.yaml
+.env
+.env.local
+
+# Development
+tmp/
+*.local
+air
+
+# Local dev config with real credentials (GITIGNORED - safe for secrets)
+config.dev.yaml
+config.dev.yaml.local
+config.local.yaml

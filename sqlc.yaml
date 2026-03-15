@@ -1,0 +1,9 @@
+version: "1"
+packages:
+  - name: "sqlc"
+    engine: "sqlite"
+    path: "internal/store/sqlc"
+    queries: "internal/store/queries.sql"
+    schema: "schema/schema.sql"
+    emit_json_tags: true
+    emit_prepared_queries: false

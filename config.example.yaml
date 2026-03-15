@@ -1,0 +1,248 @@
+# rconman - RCON Server Manager Configuration
+#
+# This is a comprehensive example configuration file showing all available options.
+# Secret values can be provided inline, from environment variables, or from files.
+
+# Server configuration
+server:
+  # HTTP server host binding
+  host: "0.0.0.0"
+
+  # HTTP server port
+  port: 8080
+
+  # Public base URL for the application (used in redirects, etc.)
+  base_url: "http://localhost:8080"
+
+  # Session secret for encrypting session cookies
+  # REQUIRED: Must be at least 32 bytes (64 bytes recommended per spec)
+  # Can be provided inline, from environment variable, or from file
+  session_secret:
+    # Option 1: Inline secret (not recommended for production)
+    value: "your_session_secret_here_minimum_32_bytes_required_for_security"
+
+    # Option 2: From environment variable (uncomment to use)
+    # valueFrom:
+    #   env: "RCONMAN_SESSION_SECRET"
+
+    # Option 3: From file (uncomment to use)
+    # valueFrom:
+    #   file: "/etc/secrets/session_secret"
+
+  # Session cookie expiry duration (go duration format)
+  session_expiry: "24h"
+
+  # Insecure mode for development (allows non-HTTPS cookies)
+  # IMPORTANT: Only use for local development, NEVER in production
+  # insecure_mode: false  # default is false (secure cookies only)
+
+# Logging configuration
+log:
+  # Log level: debug, info, warn, error
+  level: "info"
+
+  # Log format: text or json
+  format: "text"
+
+# Data store configuration
+store:
+  # Path to SQLite database file
+  path: "/var/lib/rconman/rconman.db"
+
+  # Data retention period (how long to keep command logs)
+  retention: "720h" # 30 days
+
+# Authentication and authorization configuration
+auth:
+  # OpenID Connect (OIDC) configuration
+  oidc:
+    # OIDC provider issuer URL
+    issuer_url: "https://accounts.google.com"
+
+    # OIDC client ID
+    client_id:
+      # Inline value (not recommended for production)
+      value: "your_client_id.apps.googleusercontent.com"
+
+      # Or use environment variable (uncomment to use)
+      # valueFrom:
+      #   env: "OIDC_CLIENT_ID"
+
+      # Or use file (uncomment to use)
+      # valueFrom:
+      #   file: "/etc/secrets/oidc_client_id"
+
+    # OIDC client secret (REQUIRED for v1)
+    client_secret:
+      # Inline value (not recommended for production)
+      value: "your_client_secret_here"
+
+      # Or use environment variable (uncomment to use)
+      # valueFrom:
+      #   env: "OIDC_CLIENT_SECRET"
+
+      # Or use file (uncomment to use)
+      # valueFrom:
+      #   file: "/etc/secrets/oidc_client_secret"
+
+    # OAuth 2.0 scopes to request
+    scopes:
+      - "openid"
+      - "email"
+      - "profile"
+
+  # Admin access configuration
+  admin:
+    # Claim to check for admin access
+    claim:
+      # Name of the claim in the OIDC token
+      name: "email"
+      # Value that must match for admin access
+      value: "admin@example.com"
+
+    # Email allowlist for general access
+    email_allowlist:
+      - "admin@example.com"
+      - "operator@example.com"
+
+# Minecraft server configurations
+minecraft:
+  servers:
+    # First server configuration
+    - name: "Main Server"
+      # Unique identifier for this server
+      id: "main"
+
+      # RCON connection settings
+      rcon:
+        host: "localhost"
+        port: 25575
+
+        # RCON password
+        password:
+          # Inline password (not recommended for production)
+          value: "your_rcon_password"
+
+          # Or use environment variable (uncomment to use)
+          # valueFrom:
+          #   env: "RCON_MAIN_PASSWORD"
+
+          # Or use file (uncomment to use)
+          # valueFrom:
+          #   file: "/etc/secrets/rcon_main_password"
+
+      # Interval for polling server status
+      status_poll_interval: "30s"
+
+      # Command categories and templates
+      commands:
+        - category: "Server Management"
+          templates:
+            - name: "Save World"
+              description: "Save the world without stopping the server"
+              command: "save-all"
+              params: []
+
+            - name: "Stop Server"
+              description: "Gracefully stop the server with a reason"
+              command: "stop {{reason}}"
+              params:
+                - name: "reason"
+                  type: "string"
+                  description: "Reason message shown to players"
+                  default: "Server maintenance"
+
+        - category: "World Management"
+          templates:
+            - name: "Set Difficulty"
+              description: "Set game difficulty level"
+              command: "difficulty {{level}}"
+              params:
+                - name: "level"
+                  type: "enum"
+                  options: ["peaceful", "easy", "normal", "hard"]
+                  default: "normal"
+
+            - name: "Time Set"
+              description: "Set world time"
+              command: "time set {{time}}"
+              params:
+                - name: "time"
+                  type: "enum"
+                  options: ["day", "night", "noon", "midnight"]
+                  default: "day"
+
+        - category: "Player Management"
+          templates:
+            - name: "Give Item"
+              description: "Give an item to a player"
+              command: "give {{player}} {{item}} {{amount}}"
+              params:
+                - name: "player"
+                  type: "string"
+                  description: "Player name"
+                - name: "item"
+                  type: "string"
+                  description: "Item ID (e.g., diamond)"
+                - name: "amount"
+                  type: "int"
+                  description: "Item count"
+                  default: 1
+                  min: 1
+                  max: 64
+
+    # Second server configuration (example with environment variable for password)
+    - name: "Survival Server"
+      id: "survival"
+
+      rcon:
+        host: "survival.example.com"
+        port: 25575
+        password:
+          valueFrom:
+            env: "RCON_SURVIVAL_PASSWORD"
+
+      status_poll_interval: "45s"
+
+      commands:
+        - category: "Basic Commands"
+          templates:
+            - name: "Save"
+              description: "Save the world"
+              command: "save-all"
+              params: []
+
+# Configuration notes:
+#
+# 1. Secret Resolution Priority:
+#    - Inline "value" is checked first (if present, other sources are ignored)
+#    - Environment variable is checked second
+#    - File is checked last
+#    - At least one must be provided for each secret field
+#
+# 2. Session Secret:
+#    - REQUIRED field
+#    - Must be at least 32 bytes long
+#    - 64 bytes recommended
+#    - Use a cryptographically secure random value in production
+#    - Example: openssl rand -base64 32
+#
+# 3. OIDC Configuration:
+#    - client_secret is REQUIRED for v1
+#    - Must be properly configured with your OIDC provider
+#    - client_id and client_secret should use environment variables in production
+#
+# 4. Durations:
+#    - Use Go duration format: 10s, 5m, 1h, 24h, etc.
+#    - See https://golang.org/pkg/time/#ParseDuration
+#
+# 5. Database:
+#    - Path can be absolute or relative
+#    - SQLite database will be created if it doesn't exist
+#    - Ensure the directory is writable
+#
+# 6. Log Level:
+#    - debug: Very detailed logging (not recommended for production)
+#    - info: General informational messages
+#    - warn: Warning and error messages only
+#    - error: Error messages only

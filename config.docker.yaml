@@ -1,0 +1,52 @@
+# Docker development configuration
+# Use this when running rconman in Docker for local development
+# DO NOT use inline secrets in production!
+
+server:
+  host: "0.0.0.0"
+  port: 8080
+  base_url: "http://localhost:8080"
+  session_secret:
+    value: "dev-key-minimum-32-bytes-long!!"
+  session_expiry: "24h"
+
+log:
+  level: "info"
+  format: "text"
+
+store:
+  path: "/tmp/rconman.db"
+  retention: "30d"
+
+auth:
+  oidc:
+    issuer_url: "https://accounts.google.com"
+    client_id:
+      value: "dev-client-id"
+    client_secret:
+      value: "dev-client-secret"
+    scopes: ["openid", "email", "profile"]
+  admin:
+    claim:
+      name: "roles"
+      value: "rconman-admin"
+    email_allowlist:
+      - "dev@localhost"
+
+minecraft:
+  servers:
+    - name: "Local Dev Server"
+      id: "dev-server"
+      rcon:
+        host: "localhost"
+        port: 25575
+        password:
+          value: "dev-rcon-password"
+      status_poll_interval: "30s"
+      commands:
+        - category: "Testing"
+          templates:
+            - name: "Test Command"
+              description: "A test command for development"
+              command: "/say Hello from rconman!"
+              params: []

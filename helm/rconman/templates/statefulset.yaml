@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "rconman.fullname" . }}
+  labels:
+    {{- include "rconman.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "rconman.fullname" . }}
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "rconman.selectorLabels" . | nindent 6 }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size }}
+  template:
+    metadata:
+      labels:
+        {{- include "rconman.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: rconman
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: config
+              mountPath: /etc/rconman
+          env:
+            - name: RCONMAN_SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "rconman.fullname" . }}
+                  key: session-secret
+            - name: RCONMAN_OIDC_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "rconman.fullname" . }}
+                  key: oidc-client-id
+            - name: RCONMAN_OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "rconman.fullname" . }}
+                  key: oidc-client-secret
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "rconman.fullname" . }}-config

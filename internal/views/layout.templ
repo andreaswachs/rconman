@@ -1,0 +1,70 @@
+package views
+
+import "github.com/your-org/rconman/internal/auth"
+
+templ Layout(session *auth.Session) {
+	<!DOCTYPE html>
+	<html lang="en">
+	<head>
+		<meta charset="UTF-8"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1"/>
+		<title>rconman - Server Management</title>
+		<link rel="stylesheet" href="/static/app.css"/>
+		<style>
+			body {
+				background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+				min-height: 100vh;
+			}
+			.navbar-gradient {
+				background: linear-gradient(90deg, rgba(15,23,42,0.95) 0%, rgba(30,41,59,0.95) 100%);
+				backdrop-filter: blur(10px);
+				border-bottom: 1px solid rgba(148,163,184,0.1);
+			}
+			.card-modern {
+				background: rgba(30,41,59,0.5);
+				border: 1px solid rgba(148,163,184,0.1);
+				transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+			}
+			.card-modern:hover {
+				background: rgba(30,41,59,0.7);
+				border-color: rgba(148,163,184,0.3);
+				box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3);
+				transform: translateY(-2px);
+			}
+			/* Constrain SVG icon sizes */
+			svg[class*="w-"] {
+				flex-shrink: 0;
+			}
+		</style>
+	</head>
+	<body>
+		<nav class="navbar navbar-gradient sticky top-0 z-50">
+			<div class="navbar-start">
+				<a href="/" class="flex items-center gap-3 hover:opacity-80 transition-opacity">
+					<div class="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-600 rounded-lg flex items-center justify-center">
+						<svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M13 7H7v6h6V7z"/></svg>
+					</div>
+					<span class="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">rconman</span>
+				</a>
+			</div>
+			<div class="navbar-end gap-4">
+				<div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-base-300 bg-opacity-50">
+					<svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/></svg>
+					<span class="text-sm text-gray-300">{ session.Email }</span>
+				</div>
+				<form method="POST" action="/auth/logout" class="m-0">
+					<button type="submit" class="btn btn-sm btn-ghost hover:bg-base-300">Logout</button>
+				</form>
+			</div>
+		</nav>
+		<main class="min-h-screen">
+			<div class="container mx-auto px-4 py-12">
+				{ children... }
+			</div>
+		</main>
+		<footer class="border-t border-base-300 border-opacity-20 py-8 mt-20 text-center text-gray-500 text-sm">
+			<p>rconman © 2026 • Modern Server Management</p>
+		</footer>
+	</body>
+	</html>
+}

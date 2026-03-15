@@ -1,0 +1,32 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/your-org/rconman
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+service:
+  type: ClusterIP
+  port: 8080
+
+persistence:
+  enabled: true
+  size: 1Gi
+  storageClassName: ""
+
+gateway:
+  enabled: false
+  parentRef:
+    name: ""
+    namespace: ""
+    sectionName: ""
+
+config:
+  logLevel: "info"
+  sessionExpiry: "24h"
+
+secrets:
+  sessionSecret: ""
+  oidcClientID: ""
+  oidcClientSecret: ""
+  minecraftRconPassword: ""

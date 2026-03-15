@@ -1,0 +1,231 @@
+package views
+
+import (
+	"fmt"
+	"github.com/your-org/rconman/internal/auth"
+	"github.com/your-org/rconman/internal/config"
+)
+
+templ HomePage(session *auth.Session, servers []config.ServerDef) {
+	@Layout(session) {
+		<div>
+			<div class="mb-12">
+				<h1 class="text-4xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">
+					Minecraft Servers
+				</h1>
+				<p class="text-gray-400">Manage and control your Minecraft servers in one place</p>
+			</div>
+
+			if len(servers) == 0 {
+				<div class="card card-modern p-8 text-center">
+					<p class="text-gray-400">No servers configured.</p>
+				</div>
+			} else {
+				<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+					for _, server := range servers {
+						<div class="card card-modern cursor-pointer group" onclick={ navigateToServer(server.ID) }>
+							<div class="card-body">
+								<div class="flex items-start justify-between mb-4">
+									<div class="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 bg-gradient-to-br from-green-400 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+										<svg class="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M13 7H7v6h6V7z"/></svg>
+									</div>
+									<span class="badge badge-ghost badge-sm">Online</span>
+								</div>
+								<h3 class="card-title text-xl mb-2">{ server.Name }</h3>
+								<div class="space-y-2 mb-4">
+									<p class="text-xs text-gray-400 flex items-center gap-2">
+										<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M2.5 5A1.5 1.5 0 014 3.5h3a1.5 1.5 0 010 3H4A1.5 1.5 0 012.5 5zm0 6a1.5 1.5 0 011.5-1.5h3a1.5 1.5 0 010 3H4a1.5 1.5 0 01-1.5-1.5zm0 6a1.5 1.5 0 011.5-1.5h3a1.5 1.5 0 010 3H4a1.5 1.5 0 01-1.5-1.5z"/></svg>
+										{ fmt.Sprintf("%s:%d", server.RCON.Host, server.RCON.Port) }
+									</p>
+								</div>
+								<button class="btn btn-primary btn-sm w-full group-hover:btn-accent transition-colors">
+									Manage Server
+								</button>
+							</div>
+						</div>
+					}
+				</div>
+			}
+		</div>
+	}
+}
+
+script navigateToServer(id string) {
+	window.location.href = "/servers/" + id;
+}
+
+templ ServerPage(session *auth.Session, server config.ServerDef) {
+	@Layout(session) {
+		<div>
+			<div class="flex items-center gap-4 mb-12">
+				<a href="/" class="btn btn-ghost btn-circle hover:bg-base-300 flex-shrink-0">
+					<svg class="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+				</a>
+				<div>
+					<h1 class="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+						{ server.Name }
+					</h1>
+					<p class="text-gray-400 mt-1">RCON Server Management</p>
+				</div>
+			</div>
+
+			<div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+				<!-- Server Status Card -->
+				<div class="card card-modern">
+					<div class="card-body">
+						<div class="flex items-center justify-between">
+							<div>
+								<p class="text-gray-400 text-sm">Status</p>
+								<p class="text-lg sm:text-xl md:text-2xl font-bold text-green-400">Online</p>
+							</div>
+							<div class="w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-lg bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center flex-shrink-0">
+								<svg class="w-5 h-5 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/></svg>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Host Card -->
+				<div class="card card-modern">
+					<div class="card-body">
+						<p class="text-gray-400 text-sm">Host</p>
+						<p class="font-mono text-lg text-blue-300 break-all">{ server.RCON.Host }</p>
+					</div>
+				</div>
+
+				<!-- Port Card -->
+				<div class="card card-modern">
+					<div class="card-body">
+						<p class="text-gray-400 text-sm">Port</p>
+						<p class="font-mono text-lg text-purple-300">{ fmt.Sprintf("%d", server.RCON.Port) }</p>
+					</div>
+				</div>
+
+				<!-- Commands Count -->
+				<div class="card card-modern">
+					<div class="card-body">
+						<p class="text-gray-400 text-sm">Commands</p>
+						<p class="text-2xl font-bold text-pink-400">{ fmt.Sprintf("%d", countCommands(server)) }</p>
+					</div>
+				</div>
+			</div>
+
+			<!-- Commands Section -->
+			<div class="card card-modern">
+				<div class="card-body">
+					<h2 class="card-title mb-6 text-2xl">Available Commands</h2>
+					if len(server.Commands) == 0 {
+						<p class="text-gray-400 text-center py-8">No command categories configured.</p>
+					} else {
+						<div class="space-y-6">
+							for i, category := range server.Commands {
+								if i > 0 {
+									<div class="divider my-4"/>
+								}
+								<div>
+									<h3 class="text-base sm:text-lg font-semibold text-blue-300 mb-4 flex items-center gap-2">
+										<svg class="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M5.5 13a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.3A4.5 4.5 0 1113.5 13H11V9.413l1.293 1.293a1 1 0 001.414-1.414l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13H5.5z"/></svg>
+										{ category.Category }
+									</h3>
+									<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+										for _, template := range category.Templates {
+											<div class="card bg-base-200 bg-opacity-50 border border-base-300 hover:border-blue-400 transition-colors">
+												<div class="card-body">
+													<h4 class="card-title text-base text-white">{ template.Name }</h4>
+													<p class="text-sm text-gray-400">{ template.Description }</p>
+													if len(template.Params) > 0 {
+														<div class="space-y-3 my-4">
+															for _, param := range template.Params {
+																<div>
+																	<label class="label">
+																		<span class="label-text text-xs text-gray-300">{ param.Name }</span>
+																	</label>
+																	if param.Type == "select" && len(param.Options) > 0 {
+																		<select class="select select-bordered select-sm w-full text-sm" id={ "param_" + param.Name }>
+																			for _, opt := range param.Options {
+																				<option value={ opt }>{ opt }</option>
+																			}
+																		</select>
+																	} else {
+																		<input type="text" placeholder={ param.Name } class="input input-bordered input-sm w-full text-sm" id={ "param_" + param.Name }/>
+																	}
+																</div>
+															}
+														</div>
+													}
+													<div class="card-actions justify-end mt-4">
+														<button class="btn btn-primary btn-sm" onclick={ executeCommand(server.ID, template.Command, template.Name) }>
+															Execute
+														</button>
+													</div>
+												</div>
+											</div>
+										}
+									</div>
+								</div>
+							}
+						</div>
+					}
+				</div>
+			</div>
+		</div>
+	}
+}
+
+script executeCommand(serverId string, commandTemplate string, commandName string) {
+	const btn = event.target;
+	btn.disabled = true;
+	btn.textContent = "Executing...";
+
+	// Collect parameter values
+	let command = commandTemplate;
+	const paramInputs = btn.closest(".card").querySelectorAll("[id^='param_']");
+	paramInputs.forEach(input => {
+		const paramName = input.id.replace("param_", "");
+		const paramValue = input.value || "";
+		// Replace {paramName} with the actual value in the command
+		command = command.replace("{" + paramName + "}", paramValue);
+	});
+
+	fetch("/api/commands/" + serverId, {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json"
+		},
+		body: JSON.stringify({
+			command: command
+		})
+	})
+	.then(r => {
+		if (!r.ok) return r.text().then(text => { throw new Error(text); });
+		return r.json();
+	})
+	.then(data => {
+		if (data.status === "executed") {
+			alert("✓ Command executed!\n\n" + (data.response || "Success"));
+			btn.textContent = "Execute";
+		} else if (data.error) {
+			alert("✗ Error: " + data.error);
+			btn.textContent = "Execute";
+		} else {
+			alert("✓ Command executed!");
+			btn.textContent = "Execute";
+		}
+	})
+	.catch(err => {
+		alert("✗ Failed to execute: " + err.message);
+		btn.textContent = "Execute";
+		console.error(err);
+	})
+	.finally(() => {
+		btn.disabled = false;
+	});
+}
+
+func countCommands(server config.ServerDef) int {
+	count := 0
+	for _, category := range server.Commands {
+		count += len(category.Templates)
+	}
+	return count
+}

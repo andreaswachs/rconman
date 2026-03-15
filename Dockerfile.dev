@@ -1,0 +1,37 @@
+# Development Dockerfile with CompileDaemon for hot-reloading
+# Usage: docker build -f Dockerfile.dev -t rconman:dev .
+# Run: docker run -p 8080:8080 -v $(pwd):/app rconman:dev
+
+FROM golang:1.25-alpine
+
+# Install CompileDaemon and other tools
+RUN go install github.com/githubnemo/CompileDaemon@latest
+RUN apk add --no-cache git
+
+WORKDIR /app
+
+# Copy go mod files
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Install Node.js for CSS rebuilding
+RUN apk add --no-cache nodejs npm
+WORKDIR /app/web
+RUN npm ci && npm run build
+WORKDIR /app
+
+# Build initial binary
+RUN go generate ./...
+RUN CGO_ENABLED=0 go build -o rconman ./cmd/rconman
+
+# Use CompileDaemon to watch for changes and rebuild
+ENTRYPOINT CompileDaemon \
+  -build="go generate ./... && CGO_ENABLED=0 go build -o rconman ./cmd/rconman" \
+  -command=./rconman \
+  -graceful-kill=true \
+  -polling \
+  -polling-interval=2000 \
+  -- -config /etc/rconman/config.yaml

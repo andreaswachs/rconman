@@ -1,0 +1,21 @@
+{{- if .Values.gateway.enabled }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ include "rconman.fullname" . }}
+  labels:
+    {{- include "rconman.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+    - name: {{ .Values.gateway.parentRef.name | quote }}
+      namespace: {{ .Values.gateway.parentRef.namespace | quote }}
+      sectionName: {{ .Values.gateway.parentRef.sectionName | quote }}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: "/"
+      backendRefs:
+        - name: {{ include "rconman.fullname" . }}
+          port: {{ .Values.service.port }}
+{{- end }}
