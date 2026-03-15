@@ -161,7 +161,11 @@ secrets:
 
 ### ConfigMap Template
 
-Renders the complete `config.yaml`. Secrets use `valueFrom.env` pointing to env vars injected by the StatefulSet:
+Renders the complete `config.yaml`. Secrets are **always** hardcoded to fixed env var names (`RCONMAN_SESSION_SECRET`, etc.) — the `valueFrom` block in `values.yaml` is documentation only. This is intentional: the StatefulSet always injects those env vars from whichever secret source is configured, so the config.yaml env var names never need to change.
+
+**Note on camelCase → snake_case:** `values.yaml` uses camelCase keys (Helm convention); the rendered `config.yaml` uses snake_case (Go yaml tag convention). e.g. `values.config.server.baseURL` → `base_url:`.
+
+**Note on Helm whitespace in literal block scalars:** the ConfigMap uses a YAML literal block scalar (`config.yaml: |`). All `{{- }}` trim markers inside it must be written as `{{ }}` (no trim) or use `indent`/`nindent` to preserve indentation. Whitespace is significant inside the block scalar.
 
 ```yaml
 data:
@@ -191,23 +195,16 @@ data:
           valueFrom:
             env: RCONMAN_OIDC_CLIENT_SECRET
         scopes:
-          {{- range .Values.config.auth.oidc.scopes }}
-          - {{ . | quote }}
-          {{- end }}
-      admin:
+{{ range .Values.config.auth.oidc.scopes }}        - {{ . | quote }}
+{{ end }}      admin:
         claim:
           name: {{ .Values.config.auth.admin.claim.name | quote }}
           value: {{ .Values.config.auth.admin.claim.value | quote }}
-        {{- with .Values.config.auth.admin.emailAllowlist }}
-        email_allowlist:
-          {{- range . }}
-          - {{ . | quote }}
-          {{- end }}
-        {{- end }}
-    minecraft:
+{{ if .Values.config.auth.admin.emailAllowlist }}        email_allowlist:
+{{ range .Values.config.auth.admin.emailAllowlist }}        - {{ . | quote }}
+{{ end }}{{ end }}    minecraft:
       servers:
-        {{- range .Values.config.minecraft.servers }}
-        - id: {{ .id | quote }}
+{{ range .Values.config.minecraft.servers }}      - id: {{ .id | quote }}
           name: {{ .name | quote }}
           rcon:
             host: {{ .rcon.host | quote }}
@@ -216,14 +213,15 @@ data:
               valueFrom:
                 env: {{ printf "RCONMAN_MINECRAFT_%s_RCON_PASSWORD" (.id | upper | replace "-" "_") | quote }}
           status_poll_interval: {{ .statusPollInterval | quote }}
-          {{- with .commands }}
-          commands:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-        {{- end }}
+{{ if .commands }}          commands:
+{{ toYaml .commands | indent 10 }}{{ end }}{{ end }}
 ```
 
+In practice the implementor must verify indentation of the rendered output with `helm template` and adjust spacing accordingly.
+
 ### Secret Template
+
+The chart-managed Secret is always created, even when `existingSecret` is configured (the keys will be empty in that case, which is harmless — the StatefulSet will reference the external secret instead). This avoids conditional template complexity.
 
 ```yaml
 data:
@@ -256,13 +254,16 @@ For each secret field, the StatefulSet uses a helper to resolve whether to use t
             {{ end }}
 ```
 
-**Per-server RCON password** (iterated from `secrets.minecraft.servers`, matched by ID to `config.minecraft.servers`):
+**Per-server RCON password** — iterated from `secrets.minecraft.servers` only (independent of `config.minecraft.servers`). The two lists must have matching IDs; no automatic cross-referencing is performed. A server present in `config` but absent from `secrets` will have no env var injected, causing an app startup failure.
+
 ```yaml
-- name: {{ printf "RCONMAN_MINECRAFT_%s_RCON_PASSWORD" (server.id | upper | replace "-" "_") }}
+{{- range .Values.secrets.minecraft.servers }}
+- name: {{ printf "RCONMAN_MINECRAFT_%s_RCON_PASSWORD" (.id | upper | replace "-" "_") }}
   valueFrom:
     secretKeyRef:
-      name: <existingSecret.name if set, else chart-managed secret>
-      key: <existingSecret.key if set, else "minecraft-<id>-rcon-password">
+      name: {{ if .rconPassword.existingSecret }}{{ .rconPassword.existingSecret.name }}{{ else }}<chart-secret-name>{{ end }}
+      key: {{ if .rconPassword.existingSecret }}{{ .rconPassword.existingSecret.key }}{{ else }}{{ printf "minecraft-%s-rcon-password" .id }}{{ end }}
+{{- end }}
 ```
 
 ### Env Var Naming Convention
@@ -291,6 +292,7 @@ values.yaml
 | `existingSecret` set but secret doesn't exist in cluster | Pod fails to start (K8s secretKeyRef error) |
 | Neither `value` nor `existingSecret` set, chart secret has empty value | App fails at startup: `session_secret must be at least 32 bytes` |
 | Server in `config.minecraft.servers` has no matching entry in `secrets.minecraft.servers` | Env var absent; app fails at startup with missing password error |
+| `oidc.client_id` env var missing (Go's `Validate()` does not check for nil client_id) | App fails at OIDC init at runtime rather than at startup validation — known gap in `config.go` |
 | `commands` block uses `{{ }}` syntax in values | Helm renders it via `toYaml` — no conflict as it's not a template expression |
 
 ## Success Criteria
