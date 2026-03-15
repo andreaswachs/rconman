@@ -39,18 +39,25 @@ spec:
             - name: RCONMAN_SESSION_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "rconman.fullname" . }}
-                  key: session-secret
+                  name: {{ if .Values.secrets.sessionSecret.existingSecret }}{{ .Values.secrets.sessionSecret.existingSecret.name }}{{ else }}{{ include "rconman.fullname" . }}{{ end }}
+                  key: {{ if .Values.secrets.sessionSecret.existingSecret }}{{ .Values.secrets.sessionSecret.existingSecret.key }}{{ else }}session-secret{{ end }}
             - name: RCONMAN_OIDC_CLIENT_ID
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "rconman.fullname" . }}
-                  key: oidc-client-id
+                  name: {{ if .Values.secrets.oidcClientID.existingSecret }}{{ .Values.secrets.oidcClientID.existingSecret.name }}{{ else }}{{ include "rconman.fullname" . }}{{ end }}
+                  key: {{ if .Values.secrets.oidcClientID.existingSecret }}{{ .Values.secrets.oidcClientID.existingSecret.key }}{{ else }}oidc-client-id{{ end }}
             - name: RCONMAN_OIDC_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "rconman.fullname" . }}
-                  key: oidc-client-secret
+                  name: {{ if .Values.secrets.oidcClientSecret.existingSecret }}{{ .Values.secrets.oidcClientSecret.existingSecret.name }}{{ else }}{{ include "rconman.fullname" . }}{{ end }}
+                  key: {{ if .Values.secrets.oidcClientSecret.existingSecret }}{{ .Values.secrets.oidcClientSecret.existingSecret.key }}{{ else }}oidc-client-secret{{ end }}
+            {{- range .Values.secrets.minecraft.servers }}
+            - name: {{ printf "RCONMAN_MINECRAFT_%s_RCON_PASSWORD" (.id | upper | replace "-" "_") }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ if .rconPassword.existingSecret }}{{ .rconPassword.existingSecret.name }}{{ else }}{{ include "rconman.fullname" $ }}{{ end }}
+                  key: {{ if .rconPassword.existingSecret }}{{ .rconPassword.existingSecret.key }}{{ else }}{{ printf "minecraft-%s-rcon-password" .id }}{{ end }}
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /health
