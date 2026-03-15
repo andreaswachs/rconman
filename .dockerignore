@@ -1,0 +1,31 @@
+# Pre-built binaries — the Containerfile cross-compiles its own
+rconman
+air
+
+# Dev/local artefacts
+rconman.db
+*.db-wal
+*.db-shm
+tmp/
+dist/
+*.local.yaml
+*.local
+.env
+.env.local
+config.dev.yaml
+config.local.yaml
+
+# Git history not needed in image
+.git/
+
+# Node modules — css stage copies web/ and runs npm ci itself
+web/node_modules/
+# Built CSS is regenerated inside the css stage
+web/static/app.css
+
+# Dev container
+Dockerfile.dev
+
+# Editor / OS
+.DS_Store
+*.swp
