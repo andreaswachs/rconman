@@ -41,15 +41,25 @@ config:
     retention: "30d"
   auth:
     oidc:
+      # OIDC provider discovery URL — must expose /.well-known/openid-configuration
+      # Google:   https://accounts.google.com
+      # Dex:      https://dex.example.com
+      # Keycloak: https://keycloak.example.com/realms/<realm>
+      # Authelia: https://auth.example.com
       issuerURL: "https://accounts.google.com"
+      # Client ID and secret are set via secrets.oidcClientID / secrets.oidcClientSecret below
       scopes:
         - openid
         - email
         - profile
     admin:
       claim:
+        # Claim in the ID token used to identify admins
+        # Common values: "email", "groups", "roles"
         name: "email"
-        value: ""
+        # Value the claim must equal for the user to be granted admin access
+        value: "admin@example.com"
+      # emailAllowlist restricts login to specific email addresses (optional)
       # emailAllowlist:
       #   - "admin@example.com"
   minecraft:
