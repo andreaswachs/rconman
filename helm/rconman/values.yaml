@@ -29,4 +29,48 @@ secrets:
   sessionSecret: ""
   oidcClientID: ""
   oidcClientSecret: ""
-  minecraftRconPassword: ""
+
+# NetworkPolicy controls egress from rconman to Minecraft servers and
+# ingress to the rconman HTTP port.
+# When enabled, a NetworkPolicy is created that:
+#   - allows egress to each server's pods (by namespace + podSelector)
+#   - allows egress to port 443 (external OIDC provider)
+#   - allows egress to port 53 (DNS)
+#   - allows ingress on port 8080 (configurable via ingress rules below)
+networkPolicy:
+  enabled: false
+
+  # Ingress rules for the rconman HTTP port.
+  # Each entry selects pods (and optionally namespaces) allowed to reach port 8080.
+  # Example — allow only gateway pods:
+  #   ingress:
+  #     - namespaceSelector:
+  #         matchLabels:
+  #           kubernetes.io/metadata.name: gateway-system
+  #       podSelector:
+  #         matchLabels:
+  #           app.kubernetes.io/name: gateway
+  ingress: []
+
+# Minecraft server definitions.
+# These are rendered into the mounted config and, when networkPolicy.enabled=true,
+# used to generate per-server egress rules.
+minecraft:
+  servers: []
+  # Example:
+  # servers:
+  #   - name: "Main Server"
+  #     id: "main"
+  #     rcon:
+  #       host: "minecraft.minecraft.svc.cluster.local"
+  #       port: 25575
+  #       password: ""
+  #     # Required when networkPolicy.enabled=true for this server.
+  #     # Identifies the pods rconman is allowed to reach on the RCON port.
+  #     networkPolicy:
+  #       namespace: "minecraft"
+  #       podSelector:
+  #         matchLabels:
+  #           app.kubernetes.io/name: minecraft
+  #     statusPollInterval: "30s"
+  #     commands: []

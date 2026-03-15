@@ -16,3 +16,48 @@ data:
     store:
       path: "/data/rconman.db"
       retention: "30d"
+    {{- if .Values.minecraft.servers }}
+    minecraft:
+      servers:
+      {{- range .Values.minecraft.servers }}
+        - name: {{ .name | quote }}
+          id: {{ .id | quote }}
+          rcon:
+            host: {{ .rcon.host | quote }}
+            port: {{ .rcon.port }}
+            password:
+              value: {{ .rcon.password | quote }}
+          status_poll_interval: {{ .statusPollInterval | default "30s" | quote }}
+          {{- if .commands }}
+          commands:
+          {{- range .commands }}
+            - category: {{ .category | quote }}
+              templates:
+              {{- range .templates }}
+                - name: {{ .name | quote }}
+                  description: {{ .description | quote }}
+                  command: {{ .command | quote }}
+                  {{- if .params }}
+                  params:
+                  {{- range .params }}
+                    - name: {{ .name | quote }}
+                      type: {{ .type | quote }}
+                      {{- if .description }}
+                      description: {{ .description | quote }}
+                      {{- end }}
+                      {{- if .default }}
+                      default: {{ .default | quote }}
+                      {{- end }}
+                      {{- if .options }}
+                      options:
+                      {{- range .options }}
+                        - {{ . | quote }}
+                      {{- end }}
+                      {{- end }}
+                  {{- end }}
+                  {{- end }}
+              {{- end }}
+          {{- end }}
+          {{- end }}
+      {{- end }}
+    {{- end }}
