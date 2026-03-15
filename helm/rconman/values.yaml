@@ -22,55 +22,118 @@ gateway:
     sectionName: ""
 
 config:
-  logLevel: "info"
-  sessionExpiry: "24h"
+  server:
+    baseURL: "https://rconman.example.com"
+    insecureMode: false
+    sessionExpiry: "24h"
+  log:
+    level: "info"
+    format: "text"
+  store:
+    path: "/data/rconman.db"
+    retention: "30d"
+  auth:
+    oidc:
+      issuerURL: "https://accounts.google.com"
+      scopes:
+        - openid
+        - email
+        - profile
+    admin:
+      claim:
+        name: "email"
+        value: ""
+      # emailAllowlist:
+      #   - "admin@example.com"
+  minecraft:
+    servers:
+      - id: "my-server"
+        name: "My Minecraft Server"
+        rcon:
+          host: "minecraft.example.com"
+          port: 25575
+        statusPollInterval: "30s"
+        # commands:
+        #   - category: "Player Management"
+        #     templates:
+        #       - name: "Kick Player"
+        #         description: "Kick a player from the server"
+        #         command: "kick <player> <reason>"
+        #         params:
+        #           - name: player
+        #             type: string
+        #           - name: reason
+        #             type: string
+        #             default: "Kicked by admin"
 
 secrets:
-  sessionSecret: ""
-  oidcClientID: ""
-  oidcClientSecret: ""
+  sessionSecret:
+    # Option A: chart-managed — set value here, chart creates the K8s Secret
+    # value: "your-32-byte-minimum-secret-here"
+    #
+    # Option B: reference an existing K8s Secret
+    # existingSecret:
+    #   name: "my-existing-secret"
+    #   key: "session-secret"
+    #
+    # Option C: env var — default, works automatically with Option A
+    valueFrom:
+      env: RCONMAN_SESSION_SECRET
+    #
+    # Option D: file mount
+    # valueFrom:
+    #   file: /run/secrets/session-secret
 
-# NetworkPolicy controls egress from rconman to Minecraft servers and
-# ingress to the rconman HTTP port.
-# When enabled, a NetworkPolicy is created that:
-#   - allows egress to each server's pods (by namespace + podSelector)
-#   - allows egress to port 443 (external OIDC provider)
-#   - allows egress to port 53 (DNS)
-#   - allows ingress on port 8080 (configurable via ingress rules below)
-networkPolicy:
-  enabled: false
+  oidcClientID:
+    # Option A: chart-managed
+    # value: "your-client-id"
+    #
+    # Option B: reference an existing K8s Secret
+    # existingSecret:
+    #   name: "my-oidc-secret"
+    #   key: "client-id"
+    #
+    # Option C: env var (default)
+    valueFrom:
+      env: RCONMAN_OIDC_CLIENT_ID
+    #
+    # Option D: file mount
+    # valueFrom:
+    #   file: /run/secrets/oidc-client-id
 
-  # Ingress rules for the rconman HTTP port.
-  # Each entry selects pods (and optionally namespaces) allowed to reach port 8080.
-  # Example — allow only gateway pods:
-  #   ingress:
-  #     - namespaceSelector:
-  #         matchLabels:
-  #           kubernetes.io/metadata.name: gateway-system
-  #       podSelector:
-  #         matchLabels:
-  #           app.kubernetes.io/name: gateway
-  ingress: []
+  oidcClientSecret:
+    # Option A: chart-managed
+    # value: "your-client-secret"
+    #
+    # Option B: reference an existing K8s Secret
+    # existingSecret:
+    #   name: "my-oidc-secret"
+    #   key: "client-secret"
+    #
+    # Option C: env var (default)
+    valueFrom:
+      env: RCONMAN_OIDC_CLIENT_SECRET
+    #
+    # Option D: file mount
+    # valueFrom:
+    #   file: /run/secrets/oidc-client-secret
 
-# Minecraft server definitions.
-# These are rendered into the mounted config and, when networkPolicy.enabled=true,
-# used to generate per-server egress rules.
-minecraft:
-  servers: []
-  # Example:
-  # servers:
-  #   - name: "Main Server"
-  #     id: "main"
-  #     rcon:
-  #       host: "minecraft.minecraft.svc.cluster.local"
-  #       port: 25575
-  #       password: ""
-  #     # Required when networkPolicy.enabled=true for this server.
-  #     # Identifies the pods rconman is allowed to reach on the RCON port.
-  #     networkPolicy:
-  #       namespace: "minecraft"
-  #       podSelector:
-  #         matchLabels:
-  #           app.kubernetes.io/name: minecraft
-  #     statusPollInterval: "30s"
-  #     commands: []
+  minecraft:
+    servers:
+      - id: "my-server"
+        rconPassword:
+          # Option A: chart-managed
+          # value: "my-rcon-password"
+          #
+          # Option B: reference an existing K8s Secret (most common for existing servers)
+          # existingSecret:
+          #   name: "my-minecraft-secret"
+          #   key: "rcon-password"
+          #
+          # Option C: env var (default)
+          valueFrom:
+            env: RCONMAN_MINECRAFT_MY_SERVER_RCON_PASSWORD
+          #
+          # Option D: file mount
+          # valueFrom:
+          #   file: /run/secrets/minecraft-rcon-password
