@@ -157,7 +157,7 @@ jobs:
 
   publish-helm-chart:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: build
     permissions:
       contents: read

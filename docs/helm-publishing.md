@@ -13,9 +13,7 @@ Replace `<OWNER>` with the GitHub organization or user that owns the repository.
 
 ## Publishing
 
-The chart is published automatically by the `publish-helm-chart` GitHub Actions job when:
-- A push to `main` includes changes to `helm/rconman/`
-- A version tag (`v*.*.*`) is pushed
+The chart is published automatically by the `publish-helm-chart` GitHub Actions job when a push to `main` includes changes to `helm/rconman/`.
 
 ## Version Management
 
