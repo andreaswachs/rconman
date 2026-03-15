@@ -27,6 +27,9 @@ spec:
         - name: rconman
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - --config
+            - /etc/rconman/config.yaml
           ports:
             - name: http
               containerPort: 8080
