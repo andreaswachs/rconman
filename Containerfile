@@ -8,7 +8,8 @@ COPY internal/ /src/internal/
 RUN npm run build
 
 FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS builder
-ARG TARGETOS=linux TARGETARCH=amd64
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/root/go/pkg/mod \
