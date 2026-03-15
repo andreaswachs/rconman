@@ -74,3 +74,78 @@ jobs:
           platforms: linux/amd64,linux/arm64
           cache-from: type=registry,ref=ghcr.io/${{ github.repository }}:buildcache
           cache-to: type=registry,ref=ghcr.io/${{ github.repository }}:buildcache,mode=max
+
+  validate-helm-chart:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch main branch for comparison
+        run: git fetch origin main:main
+
+      - name: Check if helm files changed
+        id: helm-changed
+        run: |
+          if git diff main...HEAD --quiet helm/rconman/; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install yq
+        if: steps.helm-changed.outputs.changed == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y yq
+
+      - name: Extract and validate versions
+        if: steps.helm-changed.outputs.changed == 'true'
+        run: |
+          # Get old version from main
+          OLD_VERSION=$(git show main:helm/rconman/Chart.yaml | yq '.version')
+
+          # Get new version from PR
+          NEW_VERSION=$(yq '.version' helm/rconman/Chart.yaml)
+
+          echo "Old version: $OLD_VERSION"
+          echo "New version: $NEW_VERSION"
+
+          # Validate SEMVER format
+          SEMVER_REGEX='^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'
+
+          if ! [[ "$NEW_VERSION" =~ $SEMVER_REGEX ]]; then
+            echo "❌ Chart.yaml version '$NEW_VERSION' is not valid SEMVER (expected X.Y.Z)"
+            exit 1
+          fi
+
+          if [[ "$OLD_VERSION" == "$NEW_VERSION" ]]; then
+            echo "❌ Chart.yaml version was not bumped (still $NEW_VERSION)"
+            exit 1
+          fi
+
+          # Parse versions for comparison (simple numeric comparison)
+          OLD_IFS=$IFS
+          IFS='.' read -r OLD_MAJOR OLD_MINOR OLD_PATCH <<< "$OLD_VERSION"
+          IFS='.' read -r NEW_MAJOR NEW_MINOR NEW_PATCH <<< "$NEW_VERSION"
+          IFS=$OLD_IFS
+
+          # Remove any pre-release suffix from patch
+          OLD_PATCH="${OLD_PATCH%%-*}"
+          NEW_PATCH="${NEW_PATCH%%-*}"
+
+          OLD_NUM=$((OLD_MAJOR * 10000 + OLD_MINOR * 100 + OLD_PATCH))
+          NEW_NUM=$((NEW_MAJOR * 10000 + NEW_MINOR * 100 + NEW_PATCH))
+
+          if [[ $NEW_NUM -le $OLD_NUM ]]; then
+            echo "❌ Version must be incremented (was $OLD_VERSION, now $NEW_VERSION)"
+            exit 1
+          fi
+
+          echo "✅ Helm chart version valid: $OLD_VERSION → $NEW_VERSION"
+
+      - name: Validation passed
+        if: steps.helm-changed.outputs.changed == 'false'
+        run: echo "✅ No Helm chart changes detected, validation skipped"
