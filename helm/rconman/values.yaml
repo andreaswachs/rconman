@@ -17,6 +17,10 @@ persistence:
   size: 1Gi
   storageClassName: ""
 
+networkPolicy:
+  enabled: false
+  ingress: []
+
 gateway:
   enabled: false
   parentRef:
