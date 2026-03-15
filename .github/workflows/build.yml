@@ -159,35 +159,62 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check if helm chart changed
+        id: helm-changed
+        run: |
+          if git diff HEAD~1 --quiet helm/rconman/ 2>/dev/null; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No helm chart changes detected, skipping publish"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Set up Helm
+        if: steps.helm-changed.outputs.changed == 'true'
         uses: azure/setup-helm@v3
         with:
           version: 'v3.13.0'
 
       - name: Extract chart version
+        if: steps.helm-changed.outputs.changed == 'true'
         id: chart-version
         run: |
           CHART_VERSION=$(grep '^version:' helm/rconman/Chart.yaml | awk '{print $2}')
+          if [[ -z "${CHART_VERSION}" ]]; then
+            echo "ERROR: Could not extract version from Chart.yaml"
+            exit 1
+          fi
           echo "version=${CHART_VERSION}" >> "$GITHUB_OUTPUT"
           echo "Chart version: ${CHART_VERSION}"
 
       - name: Package Helm chart
+        if: steps.helm-changed.outputs.changed == 'true'
         run: |
           mkdir -p /tmp/helm-charts
           helm package helm/rconman/ -d /tmp/helm-charts/
           ls -lah /tmp/helm-charts/
 
       - name: Log in to GHCR
+        if: steps.helm-changed.outputs.changed == 'true'
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io \
             -u "${{ github.actor }}" \
             --password-stdin
 
       - name: Push chart to GHCR
+        if: steps.helm-changed.outputs.changed == 'true'
         run: |
-          helm push /tmp/helm-charts/rconman-*.tgz oci://ghcr.io/${{ github.repository_owner }}/charts
+          CHART_NAME=$(grep '^name:' helm/rconman/Chart.yaml | awk '{print $2}')
+          CHART_FILE="/tmp/helm-charts/${CHART_NAME}-${{ steps.chart-version.outputs.version }}.tgz"
+          if [[ ! -f "${CHART_FILE}" ]]; then
+            echo "ERROR: Expected chart file not found: ${CHART_FILE}"
+            ls -la /tmp/helm-charts/
+            exit 1
+          fi
+          helm push "${CHART_FILE}" oci://ghcr.io/${{ github.repository_owner }}/charts
 
       - name: Output summary
+        if: steps.helm-changed.outputs.changed == 'true'
         run: |
           echo "Helm Chart Published"
           echo "Version: ${{ steps.chart-version.outputs.version }}"
