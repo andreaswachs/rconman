@@ -30,9 +30,11 @@ data:
         client_secret:
           valueFrom:
             env: RCONMAN_OIDC_CLIENT_SECRET
+{{- with .Values.config.auth.oidc.scopes }}
         scopes:
-{{- range .Values.config.auth.oidc.scopes }}
+{{- range . }}
           - {{ . | quote }}
+{{- end }}
 {{- end }}
       admin:
         claim:
@@ -58,6 +60,6 @@ data:
           status_poll_interval: {{ .statusPollInterval | quote }}
 {{- with .commands }}
           commands:
-{{- toYaml . | indent 12 }}
+            {{- toYaml . | nindent 12 }}
 {{- end }}
 {{- end }}
