@@ -9,55 +9,55 @@ data:
     server:
       host: "0.0.0.0"
       port: 8080
-      session_expiry: {{ .Values.config.sessionExpiry | quote }}
+      base_url: {{ .Values.config.server.baseURL | quote }}
+      insecure_mode: {{ .Values.config.server.insecureMode }}
+      session_expiry: {{ .Values.config.server.sessionExpiry | quote }}
+      session_secret:
+        valueFrom:
+          env: RCONMAN_SESSION_SECRET
     log:
-      level: {{ .Values.config.logLevel | quote }}
-      format: "text"
+      level: {{ .Values.config.log.level | quote }}
+      format: {{ .Values.config.log.format | quote }}
     store:
-      path: "/data/rconman.db"
-      retention: "30d"
-    {{- if .Values.minecraft.servers }}
+      path: {{ .Values.config.store.path | quote }}
+      retention: {{ .Values.config.store.retention | quote }}
+    auth:
+      oidc:
+        issuer_url: {{ .Values.config.auth.oidc.issuerURL | quote }}
+        client_id:
+          valueFrom:
+            env: RCONMAN_OIDC_CLIENT_ID
+        client_secret:
+          valueFrom:
+            env: RCONMAN_OIDC_CLIENT_SECRET
+        scopes:
+{{- range .Values.config.auth.oidc.scopes }}
+          - {{ . | quote }}
+{{- end }}
+      admin:
+        claim:
+          name: {{ .Values.config.auth.admin.claim.name | quote }}
+          value: {{ .Values.config.auth.admin.claim.value | quote }}
+{{- with .Values.config.auth.admin.emailAllowlist }}
+        email_allowlist:
+{{- range . }}
+          - {{ . | quote }}
+{{- end }}
+{{- end }}
     minecraft:
       servers:
-      {{- range .Values.minecraft.servers }}
-        - name: {{ .name | quote }}
-          id: {{ .id | quote }}
+{{- range .Values.config.minecraft.servers }}
+        - id: {{ .id | quote }}
+          name: {{ .name | quote }}
           rcon:
             host: {{ .rcon.host | quote }}
             port: {{ .rcon.port }}
             password:
-              value: {{ .rcon.password | quote }}
-          status_poll_interval: {{ .statusPollInterval | default "30s" | quote }}
-          {{- if .commands }}
+              valueFrom:
+                env: {{ printf "RCONMAN_MINECRAFT_%s_RCON_PASSWORD" (.id | upper | replace "-" "_") | quote }}
+          status_poll_interval: {{ .statusPollInterval | quote }}
+{{- with .commands }}
           commands:
-          {{- range .commands }}
-            - category: {{ .category | quote }}
-              templates:
-              {{- range .templates }}
-                - name: {{ .name | quote }}
-                  description: {{ .description | quote }}
-                  command: {{ .command | quote }}
-                  {{- if .params }}
-                  params:
-                  {{- range .params }}
-                    - name: {{ .name | quote }}
-                      type: {{ .type | quote }}
-                      {{- if .description }}
-                      description: {{ .description | quote }}
-                      {{- end }}
-                      {{- if .default }}
-                      default: {{ .default | quote }}
-                      {{- end }}
-                      {{- if .options }}
-                      options:
-                      {{- range .options }}
-                        - {{ . | quote }}
-                      {{- end }}
-                      {{- end }}
-                  {{- end }}
-                  {{- end }}
-              {{- end }}
-          {{- end }}
-          {{- end }}
-      {{- end }}
-    {{- end }}
+{{- toYaml . | indent 12 }}
+{{- end }}
+{{- end }}
