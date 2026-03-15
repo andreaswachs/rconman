@@ -34,6 +34,11 @@ func NewServer(
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
 
+	// Health check
+	router.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
 	// Public auth routes
 	authHandler := handlers.NewAuthHandler(cfg, authMiddleware)
 	router.Route("/auth", func(r chi.Router) {
