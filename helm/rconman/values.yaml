@@ -1,3 +1,6 @@
+# Helm values for rconman — authenticated web UI for RCON server management.
+# See docs/helm-publishing.md for installation instructions.
+
 replicaCount: 1
 
 image:
@@ -66,6 +69,12 @@ config:
         #             type: string
         #             default: "Kicked by admin"
 
+# Secrets — choose ONE approach per sensitive field:
+#   Option A: value      — store inline (dev/demo only)
+#   Option B: existingSecret — reference a K8s Secret you already manage
+#   Option C: valueFrom.env  — env var injected by the StatefulSet (default)
+#   Option D: valueFrom.file — mounted secret file
+
 secrets:
   sessionSecret:
     # Option A: chart-managed — set value here, chart creates the K8s Secret
@@ -76,7 +85,7 @@ secrets:
     #   name: "my-existing-secret"
     #   key: "session-secret"
     #
-    # Option C: env var — default, works automatically with Option A
+    # Option C: env var — default; set the K8s Secret value via Option A or B
     valueFrom:
       env: RCONMAN_SESSION_SECRET
     #
