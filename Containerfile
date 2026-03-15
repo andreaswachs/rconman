@@ -3,16 +3,20 @@ WORKDIR /web
 COPY web/package*.json ./
 RUN npm ci
 COPY web/ ./
+# Copy templates so Tailwind can scan them for used classes
+COPY internal/ /src/internal/
 RUN npm run build
 
-FROM golang:1.25-alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS builder
+ARG TARGETOS=linux TARGETARCH=amd64
 WORKDIR /app
 COPY go.mod go.sum ./
-RUN go mod download
+RUN --mount=type=cache,target=/root/go/pkg/mod go mod download
 COPY . .
 COPY --from=css /web/static/app.css web/static/app.css
 RUN go generate ./...
-RUN CGO_ENABLED=0 GOOS=linux go build -o rconman ./cmd/rconman
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -o rconman ./cmd/rconman
 
 FROM gcr.io/distroless/static-debian13
 COPY --from=builder /app/rconman /rconman
