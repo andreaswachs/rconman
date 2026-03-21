@@ -256,6 +256,128 @@ func TestSessionExpiryDuration(t *testing.T) {
 	}
 }
 
+func TestValidateConfig_ListNameInvalidChars(t *testing.T) {
+	cfg := &Config{
+		Server: ServerConfig{
+			SessionSecret: &SecretValue{Value: "this_is_a_very_long_secret_that_is_at_least_32_bytes_long"},
+		},
+		Auth: AuthConfig{
+			OIDC: OIDCConfig{ClientSecret: &SecretValue{Value: "secret"}},
+		},
+		Lists: map[string][]string{
+			"my list": {"a", "b"}, // space is invalid
+		},
+	}
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("expected error for list name with space")
+	}
+}
+
+func TestValidateConfig_ListEmpty(t *testing.T) {
+	cfg := &Config{
+		Server: ServerConfig{
+			SessionSecret: &SecretValue{Value: "this_is_a_very_long_secret_that_is_at_least_32_bytes_long"},
+		},
+		Auth: AuthConfig{
+			OIDC: OIDCConfig{ClientSecret: &SecretValue{Value: "secret"}},
+		},
+		Lists: map[string][]string{
+			"pokemon": {}, // empty list
+		},
+	}
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("expected error for empty list")
+	}
+}
+
+func TestValidateConfig_ListParamReferenceMissing(t *testing.T) {
+	cfg := &Config{
+		Server: ServerConfig{
+			SessionSecret: &SecretValue{Value: "this_is_a_very_long_secret_that_is_at_least_32_bytes_long"},
+		},
+		Auth: AuthConfig{
+			OIDC: OIDCConfig{ClientSecret: &SecretValue{Value: "secret"}},
+		},
+		Lists: map[string][]string{},
+		Minecraft: MinecraftConfig{
+			Servers: []ServerDef{
+				{
+					ID: "test",
+					RCON: RCONConfig{
+						Host:     "localhost",
+						Port:     25575,
+						Password: &SecretValue{Value: "pass"},
+					},
+					Commands: []CommandCategory{
+						{
+							Category: "Test",
+							Templates: []CommandTemplate{
+								{
+									Name:    "cmd",
+									Command: "/cmd {x}",
+									Params: []TemplateParam{
+										{Name: "x", Type: "list", List: "missing-list"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("expected error for list param referencing missing list")
+	}
+}
+
+func TestValidateConfig_ListParamValid(t *testing.T) {
+	cfg := &Config{
+		Server: ServerConfig{
+			SessionSecret: &SecretValue{Value: "this_is_a_very_long_secret_that_is_at_least_32_bytes_long"},
+		},
+		Auth: AuthConfig{
+			OIDC: OIDCConfig{ClientSecret: &SecretValue{Value: "secret"}},
+		},
+		Lists: map[string][]string{
+			"pokemon": {"bulbasaur", "charmander", "squirtle"},
+		},
+		Minecraft: MinecraftConfig{
+			Servers: []ServerDef{
+				{
+					ID: "test",
+					RCON: RCONConfig{
+						Host:     "localhost",
+						Port:     25575,
+						Password: &SecretValue{Value: "pass"},
+					},
+					Commands: []CommandCategory{
+						{
+							Category: "Test",
+							Templates: []CommandTemplate{
+								{
+									Name:    "cmd",
+									Command: "/cmd {x}",
+									Params: []TemplateParam{
+										{Name: "x", Type: "list", List: "pokemon"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	err := cfg.Validate()
+	if err != nil {
+		t.Fatalf("expected no error for valid list param, got %v", err)
+	}
+}
+
 func TestValidateConfig_MinecraftServerMissingPassword(t *testing.T) {
 	cfg := &Config{
 		Server: ServerConfig{
