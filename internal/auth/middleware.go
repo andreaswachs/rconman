@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -16,6 +17,7 @@ type Middleware struct {
 	config         *oauth2.Config
 	sessionManager *SessionManager
 	roleConfig     *RoleConfig
+	allowlist      AllowlistConfig
 	insecureMode   bool
 }
 
@@ -29,6 +31,7 @@ func NewMiddleware(
 	sessionSecret string,
 	sessionExpiry time.Duration,
 	roleConfig *RoleConfig,
+	allowlist AllowlistConfig,
 	insecureMode bool,
 ) (*Middleware, error) {
 	// Create OIDC provider
@@ -54,8 +57,33 @@ func NewMiddleware(
 		config:         config,
 		sessionManager: sessionManager,
 		roleConfig:     roleConfig,
+		allowlist:      allowlist,
 		insecureMode:   insecureMode,
 	}, nil
+}
+
+// isAllowed reports whether the given email is permitted to log in.
+// If both Emails and Domains are empty, all logins are denied.
+func (m *Middleware) isAllowed(email string) bool {
+	email = strings.ToLower(email)
+	if len(m.allowlist.Emails) == 0 && len(m.allowlist.Domains) == 0 {
+		return false
+	}
+	for _, e := range m.allowlist.Emails {
+		if strings.ToLower(e) == email {
+			return true
+		}
+	}
+	parts := strings.SplitN(email, "@", 2)
+	if len(parts) == 2 {
+		domain := parts[1]
+		for _, d := range m.allowlist.Domains {
+			if strings.ToLower(d) == domain {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // contextKey is used for storing values in context.
@@ -124,6 +152,10 @@ func (m *Middleware) HandleCallback(ctx context.Context, code, state string) (st
 
 	if claims.Email == "" {
 		return "", "", fmt.Errorf("email claim not found")
+	}
+
+	if !m.isAllowed(claims.Email) {
+		return "", "", ErrLoginDenied
 	}
 
 	// Determine role based on claims
