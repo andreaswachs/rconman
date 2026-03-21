@@ -54,7 +54,7 @@ script navigateToServer(id string) {
 	window.location.href = "/servers/" + id;
 }
 
-templ ServerPage(session *auth.Session, server config.ServerDef) {
+templ ServerPage(session *auth.Session, server config.ServerDef, lists map[string][]string) {
 	@Layout(session) {
 		<div>
 			<div class="flex items-center gap-4 mb-12">
