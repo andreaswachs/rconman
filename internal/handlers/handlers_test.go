@@ -66,6 +66,7 @@ func TestAuthHandlerLogin(t *testing.T) {
 		"https://accounts.google.com",
 		"test-client-id",
 		"test-client-secret",
+		"http://localhost:8080",
 		"test-session-secret-32-bytes-long",
 		24*time.Hour,
 		&auth.RoleConfig{
