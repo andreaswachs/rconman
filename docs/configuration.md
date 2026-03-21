@@ -15,6 +15,7 @@ rconman is configured via a YAML file (default: `config.yaml`) with optional env
     - [servers](#minecraftservers)
     - [commands and templates](#commands-and-templates)
     - [template parameter types](#template-parameter-types)
+  - [lists](#lists)
 - [Complete Example](#complete-example)
 - [Kubernetes / Helm](#kubernetes--helm)
 - [Running Locally](#running-locally)
@@ -382,7 +383,43 @@ A dropdown populated from a live `/list` RCON query when the tab is rendered, sh
   # no options needed — populated at runtime
 ```
 
+#### `list`
+
+A strict autocomplete input. The user types and sees suggestions from a named list defined in the top-level [`lists`](#lists) config key. Only values present in the list are accepted — submitting an unlisted value is blocked in the UI.
+
+```yaml
+- name: pokemon
+  type: list
+  list: pokemon    # must match a key defined under the top-level lists key
+```
+
+> **Cross-reference:** The value of `list` must exactly match a key in `lists`. rconman will not start if the referenced list does not exist.
+
 > **Validation:** All parameter values are validated before the command is sent. Null bytes are rejected. The final assembled command string must not exceed 4096 bytes (the RCON packet limit). Violations return a 400 error.
+
+---
+
+### `lists`
+
+Defines globally-scoped named lists of string values. Lists are referenced by command template parameters with `type: list`, which render as strict autocomplete inputs — the user sees suggestions from the list and can only submit a value that appears in it.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `lists.<name>` | list of strings | no | A named list. The name must contain only alphanumeric characters, hyphens (`-`), and underscores (`_`). Must have at least one entry. |
+
+```yaml
+lists:
+  pokemon:
+    - bulbasaur
+    - charmander
+    - squirtle
+  gamemodes:
+    - survival
+    - creative
+    - adventure
+```
+
+> **Startup validation:** All lists are validated at startup. An invalid list name (e.g. containing spaces), an empty list, or a `type: list` param that references a list name not defined here will cause rconman to exit with a clear error message.
 
 ---
 
