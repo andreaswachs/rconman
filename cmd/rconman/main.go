@@ -90,6 +90,10 @@ func main() {
 			ClaimValue:     cfg.Auth.Admin.Claim.Value,
 			EmailAllowlist: cfg.Auth.Admin.EmailAllowlist,
 		},
+		auth.AllowlistConfig{
+			Emails:  cfg.Auth.Allowlist.Emails,
+			Domains: cfg.Auth.Allowlist.Domains,
+		},
 		cfg.Server.InsecureMode,
 	)
 	if err != nil {
