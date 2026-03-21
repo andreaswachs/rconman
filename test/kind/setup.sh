@@ -6,7 +6,7 @@ kind create cluster --config test/kind/kind-config.yaml
 
 echo "Building images..."
 docker build -t rconman:e2e -f Containerfile .
-docker build -t mock-rcon:e2e test/mock-rcon
+docker build -t mock-rcon:e2e -f test/mock-rcon/Containerfile test/mock-rcon
 
 echo "Loading images into cluster..."
 kind load docker-image rconman:e2e
