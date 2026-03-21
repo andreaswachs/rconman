@@ -43,8 +43,9 @@ type StoreConfig struct {
 
 // AuthConfig contains authentication settings
 type AuthConfig struct {
-	OIDC  OIDCConfig  `yaml:"oidc"`
-	Admin AdminConfig `yaml:"admin"`
+	OIDC      OIDCConfig      `yaml:"oidc"`
+	Admin     AdminConfig     `yaml:"admin"`
+	Allowlist AllowlistConfig `yaml:"allowlist"`
 }
 
 // OIDCConfig contains OpenID Connect configuration
@@ -65,6 +66,13 @@ type AdminConfig struct {
 type ClaimConfig struct {
 	Name  string `yaml:"name"`
 	Value string `yaml:"value"`
+}
+
+// AllowlistConfig specifies which emails and domains are permitted to log in.
+// If both lists are empty, all logins are denied.
+type AllowlistConfig struct {
+	Emails  []string `yaml:"emails"`
+	Domains []string `yaml:"domains"`
 }
 
 // MinecraftConfig contains Minecraft server configurations

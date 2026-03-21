@@ -62,6 +62,15 @@ config:
       # emailAllowlist restricts login to specific email addresses (optional)
       # emailAllowlist:
       #   - "admin@example.com"
+    allowlist:
+      # Restrict login to specific email addresses and/or domains.
+      # If both lists are empty, all logins are denied.
+      # emails:
+      #   - alice@example.com
+      # domains:
+      #   - wachs.software
+      emails: []
+      domains: []
   minecraft:
     servers:
       - id: "my-server"

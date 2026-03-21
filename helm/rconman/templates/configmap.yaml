@@ -46,6 +46,27 @@ data:
           - {{ . | quote }}
 {{- end }}
 {{- end }}
+{{- with .Values.config.auth.allowlist.emails }}
+      allowlist:
+        emails:
+{{- range . }}
+          - {{ . | quote }}
+{{- end }}
+{{- with $.Values.config.auth.allowlist.domains }}
+        domains:
+{{- range . }}
+          - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- else }}
+{{- with .Values.config.auth.allowlist.domains }}
+      allowlist:
+        domains:
+{{- range . }}
+          - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
     minecraft:
       servers:
 {{- range .Values.config.minecraft.servers }}

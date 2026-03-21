@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -58,6 +59,53 @@ func TestStatusHandlerGetStatus(t *testing.T) {
 	}
 }
 
+// stubMiddleware satisfies the authMiddleware interface defined in handlers.go.
+type stubMiddleware struct {
+	callbackErr error
+}
+
+func (s *stubMiddleware) AuthCodeURL(ctx context.Context) string { return "https://provider/auth" }
+func (s *stubMiddleware) HandleCallback(ctx context.Context, code, state string) (string, string, error) {
+	return "", "", s.callbackErr
+}
+func (s *stubMiddleware) CreateSession(w http.ResponseWriter, r *http.Request, email, role string) error {
+	return nil
+}
+func (s *stubMiddleware) ClearSession(w http.ResponseWriter, r *http.Request) error { return nil }
+
+func TestAuthHandlerLogin_AccessDenied(t *testing.T) {
+	handler := NewAuthHandler(&config.Config{}, &stubMiddleware{})
+
+	req := httptest.NewRequest("GET", "/auth/login?error=access_denied", nil)
+	w := httptest.NewRecorder()
+
+	handler.Login(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Errorf("expected status %d, got %d", http.StatusForbidden, w.Code)
+	}
+	if !strings.Contains(w.Body.String(), "not authorised") {
+		t.Errorf("expected body to contain 'not authorised', got: %s", w.Body.String())
+	}
+}
+
+func TestAuthHandlerCallback_LoginDenied(t *testing.T) {
+	handler := NewAuthHandler(&config.Config{}, &stubMiddleware{callbackErr: auth.ErrLoginDenied})
+
+	req := httptest.NewRequest("GET", "/auth/callback?code=testcode&state=teststate", nil)
+	w := httptest.NewRecorder()
+
+	handler.Callback(w, req)
+
+	if w.Code != http.StatusFound {
+		t.Errorf("expected redirect %d, got %d", http.StatusFound, w.Code)
+	}
+	location := w.Header().Get("Location")
+	if location != "/auth/login?error=access_denied" {
+		t.Errorf("expected redirect to /auth/login?error=access_denied, got %q", location)
+	}
+}
+
 func TestAuthHandlerLogin(t *testing.T) {
 	// Setup
 	ctx := context.Background()
@@ -74,7 +122,8 @@ func TestAuthHandlerLogin(t *testing.T) {
 			ClaimValue:     "example.com",
 			EmailAllowlist: []string{},
 		},
-		true, // insecureMode for testing
+		auth.AllowlistConfig{}, // empty = deny all (test skips on OIDC init failure anyway)
+		true,                   // insecureMode for testing
 	)
 	if err != nil {
 		t.Skipf("skipping test due to OIDC provider initialization: %v", err)
