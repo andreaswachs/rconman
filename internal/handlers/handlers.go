@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -11,6 +13,7 @@ import (
 	"github.com/your-org/rconman/internal/config"
 	"github.com/your-org/rconman/internal/rcon"
 	"github.com/your-org/rconman/internal/store"
+	"github.com/your-org/rconman/internal/views"
 )
 
 // CommandHandler handles RCON command execution.
@@ -186,14 +189,22 @@ func (h *StatusHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, `{"status":"offline"}`)
 }
 
+// authMiddleware is the interface AuthHandler requires from the auth middleware.
+type authMiddleware interface {
+	AuthCodeURL(ctx context.Context) string
+	HandleCallback(ctx context.Context, code, state string) (string, string, error)
+	CreateSession(w http.ResponseWriter, r *http.Request, email, role string) error
+	ClearSession(w http.ResponseWriter, r *http.Request) error
+}
+
 // AuthHandler handles authentication flows.
 type AuthHandler struct {
 	config     *config.Config
-	middleware *auth.Middleware
+	middleware authMiddleware
 }
 
 // NewAuthHandler creates an auth handler.
-func NewAuthHandler(cfg *config.Config, m *auth.Middleware) *AuthHandler {
+func NewAuthHandler(cfg *config.Config, m authMiddleware) *AuthHandler {
 	return &AuthHandler{config: cfg, middleware: m}
 }
 
@@ -204,6 +215,13 @@ type LoginRequest struct {
 
 // Login redirects to OIDC provider.
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Query().Get("error") == "access_denied" {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusForbidden)
+		views.LoginErrorPage("You are not authorised to access this application.").Render(r.Context(), w)
+		return
+	}
+
 	// Generate authorization URL
 	authURL := h.middleware.AuthCodeURL(r.Context())
 	if authURL == "" {
@@ -236,6 +254,10 @@ func (h *AuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	// Exchange code for token
 	email, role, err := h.middleware.HandleCallback(r.Context(), code, state)
 	if err != nil {
+		if errors.Is(err, auth.ErrLoginDenied) {
+			http.Redirect(w, r, "/auth/login?error=access_denied", http.StatusFound)
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
 		json.NewEncoder(w).Encode(CallbackResponse{
