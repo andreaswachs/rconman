@@ -212,6 +212,28 @@ minecraft:
               command: "save-all"
               params: []
 
+            - name: "Catch Pokemon"
+              description: "Run a pokemon command"
+              command: "pokemon catch {pokemon}"
+              params:
+                - name: pokemon
+                  type: list
+                  list: pokemon
+
+# Global predefined lists
+# Define named lists of values here. Command template params with type: list
+# can reference these by name, rendering as a strict autocomplete input.
+# List names must be alphanumeric, hyphens, and underscores only (no spaces).
+lists:
+  # Example: a list of Pokemon names for a command that takes a pokemon argument
+  # Usage in params: { name: pokemon, type: list, list: pokemon }
+  pokemon:
+    - bulbasaur
+    - charmander
+    - squirtle
+    - pikachu
+    - mewtwo
+
 # Configuration notes:
 #
 # 1. Secret Resolution Priority:

@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -10,11 +11,12 @@ import (
 
 // Config represents the complete application configuration
 type Config struct {
-	Server     ServerConfig     `yaml:"server"`
-	Log        LogConfig        `yaml:"log"`
-	Store      StoreConfig      `yaml:"store"`
-	Auth       AuthConfig       `yaml:"auth"`
-	Minecraft  MinecraftConfig  `yaml:"minecraft"`
+	Server     ServerConfig        `yaml:"server"`
+	Log        LogConfig           `yaml:"log"`
+	Store      StoreConfig         `yaml:"store"`
+	Auth       AuthConfig          `yaml:"auth"`
+	Minecraft  MinecraftConfig     `yaml:"minecraft"`
+	Lists      map[string][]string `yaml:"lists"`
 }
 
 // ServerConfig contains HTTP server settings
@@ -105,6 +107,7 @@ type TemplateParam struct {
 	Name    string        `yaml:"name"`
 	Type    string        `yaml:"type"`
 	Options []string      `yaml:"options"`
+	List    string        `yaml:"list"`
 	Default interface{}   `yaml:"default"`
 	Min     int           `yaml:"min"`
 	Max     int           `yaml:"max"`
@@ -160,6 +163,35 @@ func (c *Config) Validate() error {
 
 		if _, err := server.RCON.Password.Resolve(); err != nil {
 			return fmt.Errorf("failed to resolve password for minecraft server %q: %w", server.ID, err)
+		}
+	}
+
+	// Validate global lists
+	listNameRe := regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+	for name, entries := range c.Lists {
+		if !listNameRe.MatchString(name) {
+			return fmt.Errorf("list name %q is invalid: must contain only alphanumeric characters, hyphens, and underscores", name)
+		}
+		if len(entries) == 0 {
+			return fmt.Errorf("list %q must have at least one entry", name)
+		}
+	}
+
+	// Validate list-type params reference an existing list
+	for _, server := range c.Minecraft.Servers {
+		for _, category := range server.Commands {
+			for _, tmpl := range category.Templates {
+				for _, param := range tmpl.Params {
+					if param.Type == "list" {
+						if param.List == "" {
+							return fmt.Errorf("server %q category %q template %q param %q: type=list requires a 'list' field", server.ID, category.Category, tmpl.Name, param.Name)
+						}
+						if _, ok := c.Lists[param.List]; !ok {
+							return fmt.Errorf("server %q category %q template %q param %q: references undefined list %q", server.ID, category.Category, tmpl.Name, param.Name, param.List)
+						}
+					}
+				}
+			}
 		}
 	}
 

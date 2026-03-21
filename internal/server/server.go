@@ -102,7 +102,7 @@ func NewServer(
 			}
 
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			views.ServerPage(session, *server).Render(r.Context(), w)
+			views.ServerPage(session, *server, cfg.Lists).Render(r.Context(), w)
 		})
 	})
 
