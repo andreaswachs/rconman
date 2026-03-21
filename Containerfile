@@ -19,4 +19,5 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o rconman ./cm
 
 FROM gcr.io/distroless/static-debian13
 COPY --from=builder /app/rconman /rconman
+COPY --from=builder /app/web/static /web/static
 ENTRYPOINT ["/rconman"]
