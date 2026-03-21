@@ -25,6 +25,7 @@ func NewMiddleware(
 	issuerURL string,
 	clientID string,
 	clientSecret string,
+	baseURL string,
 	sessionSecret string,
 	sessionExpiry time.Duration,
 	roleConfig *RoleConfig,
@@ -40,7 +41,7 @@ func NewMiddleware(
 	config := &oauth2.Config{
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
-		RedirectURL:  "http://localhost:8080/auth/callback", // Will be overridden at runtime if needed
+		RedirectURL:  baseURL + "/auth/callback",
 		Endpoint:     provider.Endpoint(),
 		Scopes:       []string{oidc.ScopeOpenID, "profile", "email"},
 	}

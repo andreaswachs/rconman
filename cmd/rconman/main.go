@@ -62,12 +62,28 @@ func main() {
 
 	// Setup auth
 	sessionExpiry, _ := cfg.SessionExpiryDuration()
+	clientID, err := cfg.Auth.OIDC.ClientID.Resolve()
+	if err != nil {
+		slog.Error("failed to resolve OIDC client ID", "err", err)
+		os.Exit(1)
+	}
+	clientSecret, err := cfg.Auth.OIDC.ClientSecret.Resolve()
+	if err != nil {
+		slog.Error("failed to resolve OIDC client secret", "err", err)
+		os.Exit(1)
+	}
+	sessionSecret, err := cfg.Server.SessionSecret.Resolve()
+	if err != nil {
+		slog.Error("failed to resolve session secret", "err", err)
+		os.Exit(1)
+	}
 	authMiddleware, err := auth.NewMiddleware(
 		context.Background(),
 		cfg.Auth.OIDC.IssuerURL,
-		cfg.Auth.OIDC.ClientID.Value,
-		cfg.Auth.OIDC.ClientSecret.Value,
-		cfg.Server.SessionSecret.Value,
+		clientID,
+		clientSecret,
+		cfg.Server.BaseURL,
+		sessionSecret,
 		sessionExpiry,
 		&auth.RoleConfig{
 			ClaimName:      cfg.Auth.Admin.Claim.Name,
