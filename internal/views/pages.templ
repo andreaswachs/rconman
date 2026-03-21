@@ -54,7 +54,7 @@ script navigateToServer(id string) {
 	window.location.href = "/servers/" + id;
 }
 
-templ ServerPage(session *auth.Session, server config.ServerDef) {
+templ ServerPage(session *auth.Session, server config.ServerDef, lists map[string][]string) {
 	@Layout(session) {
 		<div>
 			<div class="flex items-center gap-4 mb-12">
@@ -106,7 +106,7 @@ templ ServerPage(session *auth.Session, server config.ServerDef) {
 										{ category.Category }
 									</h3>
 									<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-										for _, template := range category.Templates {
+										for j, template := range category.Templates {
 											<div class="card bg-base-200 bg-opacity-50 border border-base-300 hover:border-blue-400 transition-colors">
 												<div class="card-body">
 													<h4 class="card-title text-base text-white">{ template.Name }</h4>
@@ -119,13 +119,27 @@ templ ServerPage(session *auth.Session, server config.ServerDef) {
 																		<span class="label-text text-xs text-gray-300">{ param.Name }</span>
 																	</label>
 																	if param.Type == "select" && len(param.Options) > 0 {
-																		<select class="select select-bordered select-sm w-full text-sm" id={ "param_" + param.Name }>
+																		<select class="select select-bordered select-sm w-full text-sm" id={ fmt.Sprintf("param_%d_%d_%s", i, j, param.Name) }>
 																			for _, opt := range param.Options {
 																				<option value={ opt }>{ opt }</option>
 																			}
 																		</select>
+																	} else if param.Type == "list" {
+																		<input
+																			type="text"
+																			id={ fmt.Sprintf("param_%d_%d_%s", i, j, param.Name) }
+																			list={ fmt.Sprintf("list_%d_%d_%s", i, j, param.Name) }
+																			autocomplete="off"
+																			placeholder={ param.Name }
+																			class="input input-bordered input-sm w-full text-sm"
+																		/>
+																		<datalist id={ fmt.Sprintf("list_%d_%d_%s", i, j, param.Name) }>
+																			for _, opt := range lists[param.List] {
+																				<option value={ opt }></option>
+																			}
+																		</datalist>
 																	} else {
-																		<input type="text" placeholder={ param.Name } class="input input-bordered input-sm w-full text-sm" id={ "param_" + param.Name }/>
+																		<input type="text" placeholder={ param.Name } class="input input-bordered input-sm w-full text-sm" id={ fmt.Sprintf("param_%d_%d_%s", i, j, param.Name) }/>
 																	}
 																</div>
 															}
@@ -155,15 +169,40 @@ script executeCommand(serverId string, commandTemplate string, commandName strin
 	btn.disabled = true;
 	btn.textContent = "Executing...";
 
-	// Collect parameter values
+	// Clear previous error states
+	btn.closest(".card").querySelectorAll(".input-error").forEach(el => {
+		el.classList.remove("input-error");
+	});
+
+	// Collect parameter values and validate list-type inputs
 	let command = commandTemplate;
+	let hasError = false;
 	const paramInputs = btn.closest(".card").querySelectorAll("[id^='param_']");
 	paramInputs.forEach(input => {
-		const paramName = input.id.replace("param_", "");
+		// Strip scoped prefix param_{catIdx}_{tplIdx}_{name} → name
+		const paramName = input.id.replace(/^param_\d+_\d+_/, "");
 		const paramValue = input.value || "";
-		// Replace {paramName} with the actual value in the command
+
+		// Strict list validation: value must be one of the datalist options
+		const listId = input.getAttribute("list");
+		if (listId) {
+			const allowed = [...document.querySelectorAll("#" + listId + " option")]
+				.map(o => o.value);
+			if (!allowed.includes(paramValue)) {
+				input.classList.add("input-error");
+				hasError = true;
+				return;
+			}
+		}
+
 		command = command.replace("{" + paramName + "}", paramValue);
 	});
+
+	if (hasError) {
+		btn.disabled = false;
+		btn.textContent = "Execute";
+		return;
+	}
 
 	fetch("/api/commands/" + serverId, {
 		method: "POST",
