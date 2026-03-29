@@ -65,13 +65,17 @@ func main() {
 	}
 	defer st.Close()
 
-	// Initialize RCON clients (placeholder)
+	// Initialize RCON clients
 	rcons := make(map[string]rcon.Client)
 	for _, srv := range cfg.Minecraft.Servers {
 		password, _ := srv.RCON.Password.Resolve()
-		// TODO: Initialize real RCON client
-		slog.Info("initialized RCON client", "server", srv.ID)
-		_ = password
+		client, err := rcon.NewRealClient(srv.RCON.Host, srv.RCON.Port, password)
+		if err != nil {
+			slog.Error("failed to create RCON client", "server", srv.ID, "err", err)
+			os.Exit(1)
+		}
+		rcons[srv.ID] = client
+		slog.Info("initialized RCON client", "server", srv.ID, "host", srv.RCON.Host, "port", srv.RCON.Port)
 	}
 
 	// Setup auth

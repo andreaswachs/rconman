@@ -2,7 +2,7 @@
 .worktrees/
 
 # rconman-specific patterns
-rconman
+/rconman
 rconman.db
 *.db-wal
 *.db-shm
