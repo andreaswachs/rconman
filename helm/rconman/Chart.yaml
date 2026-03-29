@@ -3,4 +3,4 @@ name: rconman
 description: Authenticated web UI for RCON server management
 type: application
 version: 0.2.5
-appVersion: "0.1.5"
+appVersion: "0.1.6"
