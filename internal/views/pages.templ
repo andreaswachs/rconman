@@ -195,7 +195,7 @@ script executeCommand(serverId string, commandTemplate string, commandName strin
 			}
 		}
 
-		command = command.replace("{" + paramName + "}", paramValue);
+		command = command.replace("{{" + paramName + "}}", paramValue);
 	});
 
 	if (hasError) {

@@ -497,8 +497,8 @@ func ServerPage(session *auth.Session, server config.ServerDef, lists map[string
 
 func executeCommand(serverId string, commandTemplate string, commandName string) templ.ComponentScript {
 	return templ.ComponentScript{
-		Name: `__templ_executeCommand_6352`,
-		Function: `function __templ_executeCommand_6352(serverId, commandTemplate, commandName){const btn = event.target;
+		Name: `__templ_executeCommand_024f`,
+		Function: `function __templ_executeCommand_024f(serverId, commandTemplate, commandName){const btn = event.target;
 	btn.disabled = true;
 	btn.textContent = "Executing...";
 
@@ -528,7 +528,7 @@ func executeCommand(serverId string, commandTemplate string, commandName string)
 			}
 		}
 
-		command = command.replace("{" + paramName + "}", paramValue);
+		command = command.replace("{{" + paramName + "}}", paramValue);
 	});
 
 	if (hasError) {
@@ -571,8 +571,8 @@ func executeCommand(serverId string, commandTemplate string, commandName string)
 		btn.disabled = false;
 	});
 }`,
-		Call:       templ.SafeScript(`__templ_executeCommand_6352`, serverId, commandTemplate, commandName),
-		CallInline: templ.SafeScriptInline(`__templ_executeCommand_6352`, serverId, commandTemplate, commandName),
+		Call:       templ.SafeScript(`__templ_executeCommand_024f`, serverId, commandTemplate, commandName),
+		CallInline: templ.SafeScriptInline(`__templ_executeCommand_024f`, serverId, commandTemplate, commandName),
 	}
 }
 
