@@ -297,6 +297,100 @@ jobs:
         if: steps.helm-changed.outputs.changed == 'false'
         run: echo "✅ No Helm chart changes detected, validation skipped"
 
+  validate-chart-sync:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch base branch for comparison
+        run: git fetch origin ${{ github.base_ref }}:${{ github.base_ref }}
+
+      - name: Check if image.yaml tag changed
+        id: image-tag
+        run: |
+          OLD_TAG=$(git show ${{ github.base_ref }}:image.yaml | grep '^tag:' | awk '{print $2}' | tr -d '"')
+          NEW_TAG=$(grep '^tag:' image.yaml | awk '{print $2}' | tr -d '"')
+          echo "old=$OLD_TAG" >> "$GITHUB_OUTPUT"
+          echo "new=$NEW_TAG" >> "$GITHUB_OUTPUT"
+          if [[ "$OLD_TAG" != "$NEW_TAG" ]]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Image tag changed: $OLD_TAG → $NEW_TAG"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Image tag unchanged: $OLD_TAG"
+          fi
+
+      - name: Install yq
+        if: steps.image-tag.outputs.changed == 'true'
+        run: |
+          YQ_VERSION=v4.44.2
+          sudo curl -fsSL "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64" \
+            -o /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Validate appVersion matches new image tag
+        if: steps.image-tag.outputs.changed == 'true'
+        run: |
+          NEW_TAG="${{ steps.image-tag.outputs.new }}"
+          APP_VERSION=$(yq '.appVersion' helm/rconman/Chart.yaml)
+
+          echo "New image tag:   $NEW_TAG"
+          echo "Chart appVersion: $APP_VERSION"
+
+          if [[ "$APP_VERSION" != "$NEW_TAG" ]]; then
+            echo "❌ Chart.yaml appVersion ($APP_VERSION) does not match image.yaml tag ($NEW_TAG)"
+            echo "   Update appVersion in helm/rconman/Chart.yaml to $NEW_TAG"
+            exit 1
+          fi
+
+          echo "✅ Chart appVersion matches image tag: $APP_VERSION"
+
+      - name: Validate chart version was bumped
+        if: steps.image-tag.outputs.changed == 'true'
+        run: |
+          OLD_VERSION=$(git show ${{ github.base_ref }}:helm/rconman/Chart.yaml | yq '.version' -)
+          NEW_VERSION=$(yq '.version' helm/rconman/Chart.yaml)
+
+          echo "Old chart version: $OLD_VERSION"
+          echo "New chart version: $NEW_VERSION"
+
+          SEMVER_REGEX='^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'
+
+          if ! [[ "$NEW_VERSION" =~ $SEMVER_REGEX ]]; then
+            echo "❌ Chart.yaml version '$NEW_VERSION' is not valid SEMVER"
+            exit 1
+          fi
+
+          if [[ "$OLD_VERSION" == "$NEW_VERSION" ]]; then
+            echo "❌ Chart.yaml version was not bumped (still $NEW_VERSION)"
+            echo "   image.yaml tag was updated — bump version in helm/rconman/Chart.yaml too"
+            exit 1
+          fi
+
+          OLD_IFS=$IFS
+          IFS='.' read -r OLD_MAJOR OLD_MINOR OLD_PATCH <<< "$OLD_VERSION"
+          IFS='.' read -r NEW_MAJOR NEW_MINOR NEW_PATCH <<< "$NEW_VERSION"
+          IFS=$OLD_IFS
+
+          OLD_PATCH="${OLD_PATCH%%-*}"
+          NEW_PATCH="${NEW_PATCH%%-*}"
+
+          if [[ $NEW_MAJOR -lt $OLD_MAJOR ]] || \
+             ( [[ $NEW_MAJOR -eq $OLD_MAJOR ]] && [[ $NEW_MINOR -lt $OLD_MINOR ]] ) || \
+             ( [[ $NEW_MAJOR -eq $OLD_MAJOR ]] && [[ $NEW_MINOR -eq $OLD_MINOR ]] && [[ $NEW_PATCH -le $OLD_PATCH ]] ); then
+            echo "❌ Chart version must be incremented (was $OLD_VERSION, now $NEW_VERSION)"
+            exit 1
+          fi
+
+          echo "✅ Chart version incremented: $OLD_VERSION → $NEW_VERSION"
+
+      - name: Validation passed
+        if: steps.image-tag.outputs.changed == 'false'
+        run: echo "✅ Image tag unchanged, chart sync validation skipped"
+
   publish-helm-chart:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
