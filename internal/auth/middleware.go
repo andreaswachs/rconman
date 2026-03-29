@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -155,6 +156,7 @@ func (m *Middleware) HandleCallback(ctx context.Context, code, state string) (st
 	}
 
 	if !m.isAllowed(claims.Email) {
+		log.Printf("login denied: email %q is not in the allowlist", claims.Email)
 		return "", "", ErrLoginDenied
 	}
 
