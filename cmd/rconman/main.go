@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -35,13 +36,26 @@ func main() {
 	}
 
 	// Setup logging
+	var logLevel slog.Level
+	switch strings.ToLower(cfg.Log.Level) {
+	case "debug":
+		logLevel = slog.LevelDebug
+	case "warn":
+		logLevel = slog.LevelWarn
+	case "error":
+		logLevel = slog.LevelError
+	default:
+		logLevel = slog.LevelInfo
+	}
+	opts := &slog.HandlerOptions{Level: logLevel}
 	var logger *slog.Logger
 	if cfg.Log.Format == "json" {
-		logger = slog.New(slog.NewJSONHandler(os.Stdout, nil))
+		logger = slog.New(slog.NewJSONHandler(os.Stdout, opts))
 	} else {
-		logger = slog.New(slog.NewTextHandler(os.Stdout, nil))
+		logger = slog.New(slog.NewTextHandler(os.Stdout, opts))
 	}
 	slog.SetDefault(logger)
+	slog.Debug("log level configured", "level", logLevel.String())
 
 	// Initialize store
 	st, err := store.NewSQLiteStore(cfg.Store.Path)
