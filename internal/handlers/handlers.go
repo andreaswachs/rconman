@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -56,6 +57,7 @@ func (h *CommandHandler) Execute(w http.ResponseWriter, r *http.Request) {
 	serverID := chi.URLParam(r, "id")
 	client, ok := h.rcons[serverID]
 	if !ok {
+		slog.Debug("execute request for unknown server", "server", serverID)
 		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(ExecuteResponse{
 			Status: "error",
@@ -67,6 +69,7 @@ func (h *CommandHandler) Execute(w http.ResponseWriter, r *http.Request) {
 	// Get session from context
 	session, ok := auth.GetSessionFromContext(r)
 	if !ok {
+		slog.Debug("execute request without valid session", "server", serverID)
 		w.WriteHeader(http.StatusUnauthorized)
 		json.NewEncoder(w).Encode(ExecuteResponse{
 			Status: "error",
@@ -78,6 +81,7 @@ func (h *CommandHandler) Execute(w http.ResponseWriter, r *http.Request) {
 	// Parse command from request body
 	var req ExecuteRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		slog.Debug("execute request with invalid body", "server", serverID, "user", session.Email, "err", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(ExecuteResponse{
@@ -89,6 +93,7 @@ func (h *CommandHandler) Execute(w http.ResponseWriter, r *http.Request) {
 
 	// Validate command is not empty
 	if req.Command == "" {
+		slog.Debug("execute request with empty command", "server", serverID, "user", session.Email)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(ExecuteResponse{
@@ -97,6 +102,8 @@ func (h *CommandHandler) Execute(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+
+	slog.Debug("executing RCON command", "server", serverID, "user", session.Email, "command", req.Command)
 
 	// Execute command via RCON
 	start := time.Now()
@@ -113,15 +120,28 @@ func (h *CommandHandler) Execute(w http.ResponseWriter, r *http.Request) {
 		execResp.Status = "error"
 		execResp.Error = err.Error()
 		response = ""
+		slog.Info("command execution failed",
+			"server", serverID,
+			"user", session.Email,
+			"command", req.Command,
+			"duration_ms", durationMS,
+			"err", err,
+		)
 	} else {
 		execResp.Response = response
+		slog.Info("command executed",
+			"server", serverID,
+			"user", session.Email,
+			"command", req.Command,
+			"duration_ms", durationMS,
+		)
+		slog.Debug("command response", "server", serverID, "user", session.Email, "command", req.Command, "response", response)
 	}
 
 	// Record in store if available
 	if h.store != nil {
 		if err := h.store.RecordCommand(r.Context(), session.Email, serverID, req.Command, response, durationMS); err != nil {
-			// Log error but don't fail the response
-			fmt.Printf("failed to record command: %v\n", err)
+			slog.Error("failed to record command", "server", serverID, "user", session.Email, "err", err)
 		}
 	}
 
@@ -145,6 +165,7 @@ type LogsResponse struct {
 func (h *CommandHandler) GetLogs(w http.ResponseWriter, r *http.Request) {
 	// Check if store is available
 	if h.store == nil {
+		slog.Error("get logs requested but store is not configured")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(LogsResponse{
@@ -154,8 +175,13 @@ func (h *CommandHandler) GetLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if session, ok := auth.GetSessionFromContext(r); ok {
+		slog.Debug("get logs requested", "user", session.Email)
+	}
+
 	logs, err := h.store.GetLogs(r.Context(), 50)
 	if err != nil {
+		slog.Error("failed to retrieve logs from store", "err", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(LogsResponse{
@@ -216,6 +242,7 @@ type LoginRequest struct {
 // Login redirects to OIDC provider.
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Query().Get("error") == "access_denied" {
+		slog.Debug("login page: access denied error shown")
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusForbidden)
 		views.LoginErrorPage("You are not authorised to access this application.").Render(r.Context(), w)
@@ -225,10 +252,12 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	// Generate authorization URL
 	authURL := h.middleware.AuthCodeURL(r.Context())
 	if authURL == "" {
+		slog.Error("failed to generate auth URL")
 		http.Error(w, "failed to generate auth URL", http.StatusInternalServerError)
 		return
 	}
 
+	slog.Debug("redirecting to OIDC provider for login")
 	// Redirect to OIDC provider
 	http.Redirect(w, r, authURL, http.StatusFound)
 }
@@ -245,19 +274,23 @@ func (h *AuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	// Get authorization code from query params
 	code := r.URL.Query().Get("code")
 	if code == "" {
+		slog.Debug("auth callback missing authorization code")
 		http.Error(w, "missing authorization code", http.StatusBadRequest)
 		return
 	}
 
 	state := r.URL.Query().Get("state")
+	slog.Debug("handling OIDC auth callback")
 
 	// Exchange code for token
 	email, role, err := h.middleware.HandleCallback(r.Context(), code, state)
 	if err != nil {
 		if errors.Is(err, auth.ErrLoginDenied) {
+			slog.Debug("auth callback: login denied, redirecting")
 			http.Redirect(w, r, "/auth/login?error=access_denied", http.StatusFound)
 			return
 		}
+		slog.Error("auth callback failed", "err", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
 		json.NewEncoder(w).Encode(CallbackResponse{
@@ -269,22 +302,28 @@ func (h *AuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 
 	// Create session
 	if err := h.middleware.CreateSession(w, r, email, role); err != nil {
-		fmt.Printf("failed to create session: %v\n", err)
+		slog.Error("failed to create session", "user", email, "err", err)
 		http.Error(w, fmt.Sprintf("failed to create session: %v", err), http.StatusInternalServerError)
 		return
 	}
 
+	slog.Info("user logged in", "user", email, "role", role)
 	// Redirect to home page
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
 // Logout clears session.
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	session, hasSession := auth.GetSessionFromContext(r)
 	if err := h.middleware.ClearSession(w, r); err != nil {
+		slog.Error("failed to clear session on logout", "err", err)
 		http.Error(w, "failed to logout", http.StatusInternalServerError)
 		return
 	}
 
+	if hasSession {
+		slog.Info("user logged out", "user", session.Email)
+	}
 	// Optionally redirect to OIDC provider logout, or just home
 	http.Redirect(w, r, "/", http.StatusFound)
 }

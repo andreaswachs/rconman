@@ -3,7 +3,7 @@ package auth
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -97,11 +97,13 @@ func (m *Middleware) RequireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		session, err := m.sessionManager.GetSession(r)
 		if err != nil {
+			slog.Debug("unauthenticated request, redirecting to login", "path", r.URL.Path, "err", err)
 			// No valid session, redirect to login
 			http.Redirect(w, r, "/auth/login", http.StatusFound)
 			return
 		}
 
+		slog.Debug("authenticated request", "path", r.URL.Path, "user", session.Email, "role", session.Role)
 		// Store session in context and continue
 		ctx := context.WithValue(r.Context(), sessionContextKey, session)
 		next.ServeHTTP(w, r.WithContext(ctx))
@@ -121,11 +123,16 @@ func (m *Middleware) AuthCodeURL(ctx context.Context) string {
 
 // HandleCallback processes the OAuth2 callback and returns user email and role.
 func (m *Middleware) HandleCallback(ctx context.Context, code, state string) (string, string, error) {
+	slog.Debug("exchanging auth code for token")
+
 	// Exchange code for token
 	token, err := m.config.Exchange(ctx, code)
 	if err != nil {
+		slog.Debug("auth code exchange failed", "err", err)
 		return "", "", fmt.Errorf("failed to exchange code: %w", err)
 	}
+
+	slog.Debug("auth code exchanged successfully, verifying ID token")
 
 	// Get the ID token
 	rawIDToken, ok := token.Extra("id_token").(string)
@@ -137,14 +144,17 @@ func (m *Middleware) HandleCallback(ctx context.Context, code, state string) (st
 	verifier := m.provider.Verifier(&oidc.Config{ClientID: m.config.ClientID})
 	idToken, err := verifier.Verify(ctx, rawIDToken)
 	if err != nil {
+		slog.Debug("ID token verification failed", "err", err)
 		return "", "", fmt.Errorf("failed to verify ID token: %w", err)
 	}
 
+	slog.Debug("ID token verified, extracting claims")
+
 	// Extract claims
 	var claims struct {
-		Email string        `json:"email"`
-		Name  string        `json:"name"`
-		Roles interface{}   `json:"roles"`
+		Email string      `json:"email"`
+		Name  string      `json:"name"`
+		Roles interface{} `json:"roles"`
 	}
 
 	if err := idToken.Claims(&claims); err != nil {
@@ -155,8 +165,10 @@ func (m *Middleware) HandleCallback(ctx context.Context, code, state string) (st
 		return "", "", fmt.Errorf("email claim not found")
 	}
 
+	slog.Debug("claims extracted", "email", claims.Email, "name", claims.Name)
+
 	if !m.isAllowed(claims.Email) {
-		log.Printf("login denied: email %q is not in the allowlist", claims.Email)
+		slog.Warn("login denied: email not in allowlist", "email", claims.Email)
 		return "", "", ErrLoginDenied
 	}
 
@@ -170,6 +182,7 @@ func (m *Middleware) HandleCallback(ctx context.Context, code, state string) (st
 
 	role := DetermineRole(claimsMap, m.roleConfig)
 
+	slog.Debug("authentication successful", "email", claims.Email, "role", role)
 	return claims.Email, role, nil
 }
 
