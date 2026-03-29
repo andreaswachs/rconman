@@ -466,7 +466,7 @@ func ServerPage(session *auth.Session, server config.ServerDef, lists map[string
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "\">Execute</button></div></div></div>")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "\">Execute</button></div><div class=\"command-response mt-4 hidden\"><div class=\"response-content text-xs font-mono p-3 rounded bg-base-300 whitespace-pre-wrap break-all\"></div></div></div></div>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -497,15 +497,25 @@ func ServerPage(session *auth.Session, server config.ServerDef, lists map[string
 
 func executeCommand(serverId string, commandTemplate string, commandName string) templ.ComponentScript {
 	return templ.ComponentScript{
-		Name: `__templ_executeCommand_024f`,
-		Function: `function __templ_executeCommand_024f(serverId, commandTemplate, commandName){const btn = event.target;
+		Name: `__templ_executeCommand_20ed`,
+		Function: `function __templ_executeCommand_20ed(serverId, commandTemplate, commandName){const btn = event.target;
 	btn.disabled = true;
 	btn.textContent = "Executing...";
 
-	// Clear previous error states
-	btn.closest(".card").querySelectorAll(".input-error").forEach(el => {
+	// Clear previous error states and responses
+	const card = btn.closest(".card");
+	card.querySelectorAll(".input-error").forEach(el => {
 		el.classList.remove("input-error");
 	});
+	const responseDiv = card.querySelector(".command-response");
+	const responseContent = card.querySelector(".response-content");
+	if (responseDiv) {
+		responseDiv.classList.add("hidden");
+	}
+	if (responseContent) {
+		responseContent.textContent = "";
+		responseContent.className = "response-content text-xs font-mono p-3 rounded bg-base-300 whitespace-pre-wrap break-all";
+	}
 
 	// Collect parameter values and validate list-type inputs
 	let command = commandTemplate;
@@ -551,19 +561,29 @@ func executeCommand(serverId string, commandTemplate string, commandName string)
 		return r.json();
 	})
 	.then(data => {
-		if (data.status === "executed") {
-			alert("✓ Command executed!\n\n" + (data.response || "Success"));
-			btn.textContent = "Execute";
-		} else if (data.error) {
-			alert("✗ Error: " + data.error);
-			btn.textContent = "Execute";
-		} else {
-			alert("✓ Command executed!");
-			btn.textContent = "Execute";
+		if (responseDiv && responseContent) {
+			responseDiv.classList.remove("hidden");
+			if (data.status === "executed") {
+				responseContent.classList.add("bg-green-900", "bg-opacity-30", "border", "border-green-600");
+				responseContent.textContent = "✓ " + (data.response || "Success");
+				btn.textContent = "Execute";
+			} else if (data.error) {
+				responseContent.classList.add("bg-red-900", "bg-opacity-30", "border", "border-red-600");
+				responseContent.textContent = "✗ Error: " + data.error;
+				btn.textContent = "Execute";
+			} else {
+				responseContent.classList.add("bg-green-900", "bg-opacity-30", "border", "border-green-600");
+				responseContent.textContent = "✓ Command executed!";
+				btn.textContent = "Execute";
+			}
 		}
 	})
 	.catch(err => {
-		alert("✗ Failed to execute: " + err.message);
+		if (responseDiv && responseContent) {
+			responseDiv.classList.remove("hidden");
+			responseContent.classList.add("bg-red-900", "bg-opacity-30", "border", "border-red-600");
+			responseContent.textContent = "✗ Failed to execute: " + err.message;
+		}
 		btn.textContent = "Execute";
 		console.error(err);
 	})
@@ -571,8 +591,8 @@ func executeCommand(serverId string, commandTemplate string, commandName string)
 		btn.disabled = false;
 	});
 }`,
-		Call:       templ.SafeScript(`__templ_executeCommand_024f`, serverId, commandTemplate, commandName),
-		CallInline: templ.SafeScriptInline(`__templ_executeCommand_024f`, serverId, commandTemplate, commandName),
+		Call:       templ.SafeScript(`__templ_executeCommand_20ed`, serverId, commandTemplate, commandName),
+		CallInline: templ.SafeScriptInline(`__templ_executeCommand_20ed`, serverId, commandTemplate, commandName),
 	}
 }
 

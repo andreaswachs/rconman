@@ -145,13 +145,16 @@ templ ServerPage(session *auth.Session, server config.ServerDef, lists map[strin
 															}
 														</div>
 													}
-													<div class="card-actions justify-end mt-4">
-														<button class="btn btn-primary btn-sm" onclick={ executeCommand(server.ID, template.Command, template.Name) }>
-															Execute
-														</button>
-													</div>
+												<div class="card-actions justify-end mt-4">
+													<button class="btn btn-primary btn-sm" onclick={ executeCommand(server.ID, template.Command, template.Name) }>
+														Execute
+													</button>
+												</div>
+												<div class="command-response mt-4 hidden">
+													<div class="response-content text-xs font-mono p-3 rounded bg-base-300 whitespace-pre-wrap break-all"></div>
 												</div>
 											</div>
+										</div>
 										}
 									</div>
 								</div>
@@ -169,10 +172,20 @@ script executeCommand(serverId string, commandTemplate string, commandName strin
 	btn.disabled = true;
 	btn.textContent = "Executing...";
 
-	// Clear previous error states
-	btn.closest(".card").querySelectorAll(".input-error").forEach(el => {
+	// Clear previous error states and responses
+	const card = btn.closest(".card");
+	card.querySelectorAll(".input-error").forEach(el => {
 		el.classList.remove("input-error");
 	});
+	const responseDiv = card.querySelector(".command-response");
+	const responseContent = card.querySelector(".response-content");
+	if (responseDiv) {
+		responseDiv.classList.add("hidden");
+	}
+	if (responseContent) {
+		responseContent.textContent = "";
+		responseContent.className = "response-content text-xs font-mono p-3 rounded bg-base-300 whitespace-pre-wrap break-all";
+	}
 
 	// Collect parameter values and validate list-type inputs
 	let command = commandTemplate;
@@ -218,19 +231,29 @@ script executeCommand(serverId string, commandTemplate string, commandName strin
 		return r.json();
 	})
 	.then(data => {
-		if (data.status === "executed") {
-			alert("✓ Command executed!\n\n" + (data.response || "Success"));
-			btn.textContent = "Execute";
-		} else if (data.error) {
-			alert("✗ Error: " + data.error);
-			btn.textContent = "Execute";
-		} else {
-			alert("✓ Command executed!");
-			btn.textContent = "Execute";
+		if (responseDiv && responseContent) {
+			responseDiv.classList.remove("hidden");
+			if (data.status === "executed") {
+				responseContent.classList.add("bg-green-900", "bg-opacity-30", "border", "border-green-600");
+				responseContent.textContent = "✓ " + (data.response || "Success");
+				btn.textContent = "Execute";
+			} else if (data.error) {
+				responseContent.classList.add("bg-red-900", "bg-opacity-30", "border", "border-red-600");
+				responseContent.textContent = "✗ Error: " + data.error;
+				btn.textContent = "Execute";
+			} else {
+				responseContent.classList.add("bg-green-900", "bg-opacity-30", "border", "border-green-600");
+				responseContent.textContent = "✓ Command executed!";
+				btn.textContent = "Execute";
+			}
 		}
 	})
 	.catch(err => {
-		alert("✗ Failed to execute: " + err.message);
+		if (responseDiv && responseContent) {
+			responseDiv.classList.remove("hidden");
+			responseContent.classList.add("bg-red-900", "bg-opacity-30", "border", "border-red-600");
+			responseContent.textContent = "✗ Failed to execute: " + err.message;
+		}
 		btn.textContent = "Execute";
 		console.error(err);
 	})
