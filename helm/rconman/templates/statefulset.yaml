@@ -22,6 +22,12 @@ spec:
     metadata:
       labels:
         {{- include "rconman.selectorLabels" . | nindent 8 }}
+      {{- if .Values.metrics.enabled }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ .Values.metrics.port }}"
+        prometheus.io/path: "/metrics"
+      {{- end }}
     spec:
       containers:
         - name: rconman

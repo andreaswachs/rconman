@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/your-org/rconman/internal/rcon"
 	"github.com/your-org/rconman/internal/store"
 	"github.com/your-org/rconman/internal/views"
+	"github.com/your-org/rconman/web"
 )
 
 // Server wraps the HTTP server and router.
@@ -47,8 +49,27 @@ func NewServer(
 		r.Post("/logout", authHandler.Logout)
 	})
 
-	// Serve static files
-	router.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("web/static"))))
+	// Serve static files from embedded FS
+	staticSub, _ := fs.Sub(web.StaticFS, "static")
+	router.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.FS(staticSub))))
+
+	// Prometheus metrics (unauthenticated — for KEDA/Prometheus scraping)
+	metricsHandler := handlers.NewMetricsHandler(st, cfg)
+	router.Get("/metrics", metricsHandler.ServeHTTP)
+
+	// Create status cache and start background pollers
+	serverIDs := make([]string, len(cfg.Minecraft.Servers))
+	intervals := make(map[string]time.Duration)
+	for i, srv := range cfg.Minecraft.Servers {
+		serverIDs[i] = srv.ID
+		interval, err := time.ParseDuration(srv.StatusPollInterval)
+		if err != nil || interval == 0 {
+			interval = 30 * time.Second
+		}
+		intervals[srv.ID] = interval
+	}
+	statusCache := handlers.NewStatusCache(serverIDs)
+	statusCache.StartPollers(rcons, intervals)
 
 	// Protected routes
 	router.Group(func(r chi.Router) {
@@ -63,12 +84,28 @@ func NewServer(
 			r.Get("/", commandHandler.GetLogs)
 		})
 
-		statusHandler := handlers.NewStatusHandler(rcons)
-		r.Route("/api/status", func(r chi.Router) {
-			r.Get("/{id}", statusHandler.GetStatus)
+		statusHandler := handlers.NewStatusHandler(rcons, statusCache)
+		powerHandler := handlers.NewPowerHandler(st)
+		r.Route("/api/servers", func(r chi.Router) {
+			r.Get("/{id}/status", statusHandler.GetStatus)
+			r.Get("/{id}/players", statusHandler.GetPlayers)
+			r.Get("/{id}/power", powerHandler.GetPower)
+			r.Post("/{id}/power", powerHandler.SetPower)
 		})
 
-		// Home page with authenticated user
+		// HTMX partials
+		partialHandler := handlers.NewPartialHandler(cfg, statusCache, st, rcons)
+		r.Route("/partials", func(r chi.Router) {
+			r.Get("/server/{id}", partialHandler.ServerPartial)
+			r.Get("/server/{id}/category/{catIndex}", partialHandler.CategoryPartial)
+			r.Get("/server/{id}/status", partialHandler.StatusPartial)
+			r.Get("/server/{id}/custom", partialHandler.CustomCommandPartial)
+			r.Get("/server/{id}/players", partialHandler.PlayersPartial)
+			r.Get("/server/{id}/power", partialHandler.PowerPartial)
+			r.Get("/logs", partialHandler.LogPartial)
+		})
+
+		// Home page
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			session, ok := auth.GetSessionFromContext(r)
 			if !ok {
@@ -77,32 +114,6 @@ func NewServer(
 			}
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			views.HomePage(session, cfg.Minecraft.Servers).Render(r.Context(), w)
-		})
-
-		// Server detail page
-		r.Get("/servers/{id}", func(w http.ResponseWriter, r *http.Request) {
-			session, ok := auth.GetSessionFromContext(r)
-			if !ok {
-				http.Redirect(w, r, "/auth/login", http.StatusFound)
-				return
-			}
-
-			serverID := chi.URLParam(r, "id")
-			var server *config.ServerDef
-			for i := range cfg.Minecraft.Servers {
-				if cfg.Minecraft.Servers[i].ID == serverID {
-					server = &cfg.Minecraft.Servers[i]
-					break
-				}
-			}
-
-			if server == nil {
-				http.Error(w, "server not found", http.StatusNotFound)
-				return
-			}
-
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			views.ServerPage(session, *server, cfg.Lists).Render(r.Context(), w)
 		})
 	})
 

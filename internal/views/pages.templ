@@ -2,270 +2,353 @@ package views
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/your-org/rconman/internal/auth"
 	"github.com/your-org/rconman/internal/config"
+	"github.com/your-org/rconman/internal/store"
 )
 
 templ HomePage(session *auth.Session, servers []config.ServerDef) {
 	@Layout(session) {
-		<div>
-			<div class="mb-12">
-				<h1 class="text-4xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">
-					Minecraft Servers
-				</h1>
-				<p class="text-gray-400">Manage and control your Minecraft servers in one place</p>
+		if len(servers) == 0 {
+			<div class="card card-modern p-8 text-center">
+				<p class="text-gray-400">No servers configured.</p>
 			</div>
-
-			if len(servers) == 0 {
-				<div class="card card-modern p-8 text-center">
-					<p class="text-gray-400">No servers configured.</p>
-				</div>
-			} else {
-				<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-					for _, server := range servers {
-						<div class="card card-modern cursor-pointer group" onclick={ navigateToServer(server.ID) }>
-							<div class="card-body">
-								<div class="flex items-start justify-between mb-4">
-									<div class="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 bg-gradient-to-br from-green-400 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
-										<svg class="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M13 7H7v6h6V7z"/></svg>
-									</div>
-									<span class="badge badge-ghost badge-sm">Online</span>
-								</div>
-								<h3 class="card-title text-xl mb-2">{ server.Name }</h3>
-								<div class="space-y-2 mb-4">
-									<p class="text-xs text-gray-400 flex items-center gap-2">
-										<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M2.5 5A1.5 1.5 0 014 3.5h3a1.5 1.5 0 010 3H4A1.5 1.5 0 012.5 5zm0 6a1.5 1.5 0 011.5-1.5h3a1.5 1.5 0 010 3H4a1.5 1.5 0 01-1.5-1.5zm0 6a1.5 1.5 0 011.5-1.5h3a1.5 1.5 0 010 3H4a1.5 1.5 0 01-1.5-1.5z"/></svg>
-										{ fmt.Sprintf("%s:%d", server.RCON.Host, server.RCON.Port) }
-									</p>
-								</div>
-								<button class="btn btn-primary btn-sm w-full group-hover:btn-accent transition-colors">
-									Manage Server
-								</button>
-							</div>
-						</div>
+		} else {
+			<div>
+				<div class="flex flex-wrap gap-2 mb-6">
+					for i, server := range servers {
+						<button
+							hx-get={ fmt.Sprintf("/partials/server/%s", server.ID) }
+							hx-target="#server-content"
+							hx-swap="innerHTML"
+							class={ serverPillClass(i == 0) }
+						>
+							{ server.Name }
+						</button>
 					}
 				</div>
-			}
-		</div>
-	}
-}
-
-script navigateToServer(id string) {
-	window.location.href = "/servers/" + id;
-}
-
-templ ServerPage(session *auth.Session, server config.ServerDef, lists map[string][]string) {
-	@Layout(session) {
-		<div>
-			<div class="flex items-center gap-4 mb-12">
-				<a href="/" class="btn btn-ghost btn-circle hover:bg-base-300 flex-shrink-0">
-					<svg class="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-				</a>
-				<div>
-					<h1 class="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-						{ server.Name }
-					</h1>
-					<p class="text-gray-400 mt-1">RCON Server Management</p>
+				<div id="server-content" hx-get={ fmt.Sprintf("/partials/server/%s", servers[0].ID) } hx-trigger="load" hx-swap="innerHTML">
+					<div class="flex items-center justify-center py-12">
+						<span class="loading loading-dots loading-md text-blue-400"></span>
+					</div>
 				</div>
-			</div>
-
-			<div class="mb-8">
-				<!-- Server Status & Uptime Card -->
-				<div class="card card-modern w-full max-w-sm">
-					<div class="card-body py-3 px-4">
-						<div class="flex items-center justify-between">
-							<div class="flex-1">
-								<p class="text-gray-400 text-xs mb-2">Status</p>
-								<p class="text-lg font-bold text-green-400 mb-3">Online</p>
-								<p class="text-gray-400 text-xs mb-1">Uptime</p>
-								<p class="text-base font-bold text-purple-400">24d 15h</p>
-							</div>
-							<div class="w-9 h-9 rounded-lg bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center flex-shrink-0 ml-4">
-								<svg class="w-5 h-5 text-white flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/></svg>
-							</div>
-						</div>
+				<div class="collapse collapse-arrow bg-base-200 bg-opacity-50 border border-base-300 mt-8">
+					<input type="checkbox" name="log-drawer"/>
+					<div class="collapse-title font-medium text-gray-300 flex items-center gap-2">
+						<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 011-1h2a1 1 0 011 1v10a1 1 0 01-1 1h-2a1 1 0 01-1-1V9z"/></svg>
+						Command Log
+					</div>
+					<div class="collapse-content" hx-get="/partials/logs" hx-trigger="load" hx-swap="innerHTML">
 					</div>
 				</div>
 			</div>
+		}
+	}
+}
 
-			<!-- Commands Section -->
-			<div class="card card-modern">
+func serverPillClass(active bool) string {
+	if active {
+		return "btn btn-sm border border-blue-400 bg-blue-500 bg-opacity-20 text-blue-300"
+	}
+	return "btn btn-sm border border-base-300 hover:border-blue-400 transition-colors"
+}
+
+templ ServerPartial(session *auth.Session, server config.ServerDef, lists map[string][]string) {
+	<div id="server-content-inner">
+		<div class="flex items-center justify-between gap-4 mb-6">
+			<div>
+				<h1 class="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+					{ server.Name }
+				</h1>
+				<p class="text-gray-400 text-sm">{ fmt.Sprintf("%s:%d", server.RCON.Host, server.RCON.Port) }</p>
+			</div>
+			if session.Role == "admin" {
+				<div
+					id="power-toggle"
+					hx-get={ fmt.Sprintf("/partials/server/%s/power", server.ID) }
+					hx-trigger="load"
+					hx-swap="innerHTML"
+				>
+				</div>
+			}
+		</div>
+
+		<div
+			id="status-bar"
+			hx-get={ fmt.Sprintf("/partials/server/%s/status", server.ID) }
+			hx-trigger="load, every 30s"
+			hx-swap="innerHTML"
+			class="mb-6"
+		>
+			<div class="flex items-center gap-2 text-gray-400 text-sm">
+				<span class="loading loading-dots loading-sm"></span>
+			</div>
+		</div>
+
+		<div class="flex flex-wrap gap-2 mb-6 border-b border-base-300 pb-3">
+			for i, category := range server.Commands {
+				<button
+					hx-get={ fmt.Sprintf("/partials/server/%s/category/%d", server.ID, i) }
+					hx-target="#commands"
+					hx-swap="innerHTML"
+					class={ categoryTabClass(i == 0) }
+				>
+					{ category.Category }
+				</button>
+			}
+			if session.Role == "admin" {
+				<button
+					hx-get={ fmt.Sprintf("/partials/server/%s/custom", server.ID) }
+					hx-target="#commands"
+					hx-swap="innerHTML"
+					class="btn btn-sm border border-base-300 hover:border-blue-400 transition-colors"
+				>
+					Custom
+				</button>
+			}
+		</div>
+
+		<div id="commands" hx-get={ fmt.Sprintf("/partials/server/%s/category/0", server.ID) } hx-trigger="load" hx-swap="innerHTML">
+			<div class="flex items-center justify-center py-8">
+				<span class="loading loading-dots loading-sm text-blue-400"></span>
+			</div>
+		</div>
+	</div>
+}
+
+func categoryTabClass(active bool) string {
+	if active {
+		return "btn btn-sm border border-blue-400 bg-blue-500 bg-opacity-20 text-blue-300"
+	}
+	return "btn btn-sm border border-base-300 hover:border-blue-400 transition-colors"
+}
+
+templ CategoryPartial(session *auth.Session, server config.ServerDef, catIndex int, lists map[string][]string) {
+	<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+		for _, template := range server.Commands[catIndex].Templates {
+			<div class="card bg-base-200 bg-opacity-50 border border-base-300 hover:border-blue-400 transition-colors">
 				<div class="card-body">
-					<h2 class="card-title mb-6 text-2xl">Available Commands</h2>
-					if len(server.Commands) == 0 {
-						<p class="text-gray-400 text-center py-8">No command categories configured.</p>
-					} else {
-						<div class="space-y-6">
-							for i, category := range server.Commands {
-								if i > 0 {
-									<div class="divider my-4"/>
-								}
+					<h4 class="card-title text-base text-white">{ template.Name }</h4>
+					<p class="text-sm text-gray-400">{ template.Description }</p>
+					if len(template.Params) > 0 {
+						<form
+							hx-post={ fmt.Sprintf("/api/commands/%s", server.ID) }
+							hx-target="find .command-response"
+							hx-swap="innerHTML"
+							hx-disabled-elt="find button"
+							class="space-y-3 my-4"
+						>
+							<input type="hidden" name="command_template" value={ template.Command }/>
+							for _, param := range template.Params {
 								<div>
-									<h3 class="text-base sm:text-lg font-semibold text-blue-300 mb-4 flex items-center gap-2">
-										<svg class="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M5.5 13a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.3A4.5 4.5 0 1113.5 13H11V9.413l1.293 1.293a1 1 0 001.414-1.414l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13H5.5z"/></svg>
-										{ category.Category }
-									</h3>
-									<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-										for j, template := range category.Templates {
-											<div class="card bg-base-200 bg-opacity-50 border border-base-300 hover:border-blue-400 transition-colors">
-												<div class="card-body">
-													<h4 class="card-title text-base text-white">{ template.Name }</h4>
-													<p class="text-sm text-gray-400">{ template.Description }</p>
-													if len(template.Params) > 0 {
-														<div class="space-y-3 my-4">
-															for _, param := range template.Params {
-																<div>
-																	<label class="label">
-																		<span class="label-text text-xs text-gray-300">{ param.Name }</span>
-																	</label>
-																	if param.Type == "select" && len(param.Options) > 0 {
-																		<select class="select select-bordered select-sm w-full text-sm" id={ fmt.Sprintf("param_%d_%d_%s", i, j, param.Name) }>
-																			for _, opt := range param.Options {
-																				<option value={ opt }>{ opt }</option>
-																			}
-																		</select>
-																	} else if param.Type == "list" {
-																		<input
-																			type="text"
-																			id={ fmt.Sprintf("param_%d_%d_%s", i, j, param.Name) }
-																			list={ fmt.Sprintf("list_%d_%d_%s", i, j, param.Name) }
-																			autocomplete="off"
-																			placeholder={ param.Name }
-																			class="input input-bordered input-sm w-full text-sm"
-																		/>
-																		<datalist id={ fmt.Sprintf("list_%d_%d_%s", i, j, param.Name) }>
-																			for _, opt := range lists[param.List] {
-																				<option value={ opt }></option>
-																			}
-																		</datalist>
-																	} else {
-																		<input type="text" placeholder={ param.Name } class="input input-bordered input-sm w-full text-sm" id={ fmt.Sprintf("param_%d_%d_%s", i, j, param.Name) }/>
-																	}
-																</div>
-															}
-														</div>
-													}
-												<div class="card-actions justify-end mt-4">
-													<button class="btn btn-primary btn-sm" onclick={ executeCommand(server.ID, template.Command, template.Name) }>
-														Execute
-													</button>
-												</div>
-												<div class="command-response mt-4 hidden">
-													<div class="response-content text-xs font-mono p-3 rounded bg-base-300 whitespace-pre-wrap break-all"></div>
-												</div>
-											</div>
-										</div>
-										}
-									</div>
+									<label class="label">
+										<span class="label-text text-xs text-gray-300">{ param.Name }</span>
+									</label>
+									@paramInput(server.ID, param, lists)
 								</div>
 							}
-						</div>
+							<div class="card-actions justify-end mt-2">
+								<button type="submit" class="btn btn-primary btn-sm">
+									Execute
+								</button>
+							</div>
+							<div class="command-response mt-2"></div>
+						</form>
+					} else {
+						<form
+							hx-post={ fmt.Sprintf("/api/commands/%s", server.ID) }
+							hx-target="find .command-response"
+							hx-swap="innerHTML"
+							hx-disabled-elt="find button"
+							class="space-y-3 mt-4"
+						>
+							<input type="hidden" name="command_template" value={ template.Command }/>
+							<div class="card-actions justify-end">
+								<button type="submit" class="btn btn-primary btn-sm">
+									Execute
+								</button>
+							</div>
+							<div class="command-response mt-2"></div>
+						</form>
 					}
 				</div>
 			</div>
+		}
+	</div>
+}
+
+templ paramInput(serverID string, param config.TemplateParam, lists map[string][]string) {
+	if (param.Type == "select" || param.Type == "enum") && len(param.Options) > 0 {
+		<select name={ param.Name } class="select select-bordered select-sm w-full text-sm">
+			for _, opt := range param.Options {
+				<option value={ opt }>{ opt }</option>
+			}
+		</select>
+	} else if param.Type == "list" {
+		<input
+			type="text"
+			name={ param.Name }
+			autocomplete="off"
+			placeholder={ param.Name }
+			class="input input-bordered input-sm w-full text-sm"
+			list={ fmt.Sprintf("dl_%s_%s", serverID, param.Name) }
+		/>
+		<datalist id={ fmt.Sprintf("dl_%s_%s", serverID, param.Name) }>
+			for _, opt := range lists[param.List] {
+				<option value={ opt }></option>
+			}
+		</datalist>
+	} else if param.Type == "number" || param.Type == "int" {
+		<input
+			type="number"
+			name={ param.Name }
+			placeholder={ param.Name }
+			class="input input-bordered input-sm w-full text-sm"
+			if param.Min != 0 {
+				min={ fmt.Sprintf("%d", param.Min) }
+			}
+			if param.Max != 0 {
+				max={ fmt.Sprintf("%d", param.Max) }
+			}
+		/>
+	} else if param.Type == "boolean" {
+		<input type="checkbox" name={ param.Name } class="toggle toggle-sm toggle-primary"/>
+	} else if param.Type == "player" {
+		<select
+			name={ param.Name }
+			class="select select-bordered select-sm w-full text-sm"
+			hx-get={ fmt.Sprintf("/partials/server/%s/players", serverID) }
+			hx-trigger="load"
+			hx-swap="innerHTML"
+		>
+		</select>
+	} else {
+		<input type="text" name={ param.Name } placeholder={ param.Name } class="input input-bordered input-sm w-full text-sm"/>
+	}
+}
+
+templ CustomCommandPartial(session *auth.Session, serverID string) {
+	<div class="card bg-base-200 bg-opacity-50 border border-base-300">
+		<div class="card-body">
+			<h4 class="card-title text-base text-white">Custom Command</h4>
+			<p class="text-sm text-gray-400">Execute any RCON command directly</p>
+			<form
+				hx-post={ fmt.Sprintf("/api/commands/%s", serverID) }
+				hx-target="find .command-response"
+				hx-swap="innerHTML"
+			hx-disabled-elt="find button"
+			class="space-y-3 mt-4"
+		>
+			<div>
+					<label class="label">
+						<span class="label-text text-xs text-gray-300">Command</span>
+					</label>
+					<input type="text" name="command" placeholder="e.g. say Hello World" class="input input-bordered w-full text-sm"/>
+				</div>
+				<div class="card-actions justify-end">
+					<button type="submit" class="btn btn-primary btn-sm">Execute</button>
+				</div>
+				<div class="command-response mt-2"></div>
+			</form>
+		</div>
+	</div>
+}
+
+templ StatusPartial(online bool, playerCount int, errorMsg string) {
+	if online {
+		<div class="inline-flex items-center gap-3 px-4 py-2 rounded-lg bg-green-900 bg-opacity-30 border border-green-600">
+			<div class="w-2.5 h-2.5 bg-green-400 rounded-full"></div>
+			<span class="text-sm font-semibold text-green-400">Online</span>
+			<span class="text-sm text-gray-400">{ fmt.Sprintf("%d player(s)", playerCount) }</span>
+		</div>
+	} else {
+		<div class="inline-flex items-center gap-3 px-4 py-2 rounded-lg bg-red-900 bg-opacity-30 border border-red-600">
+			<div class="w-2.5 h-2.5 bg-red-400 rounded-full"></div>
+			<span class="text-sm font-semibold text-red-400">Offline</span>
+			if errorMsg != "" {
+				<span class="text-xs text-gray-500">{ errorMsg }</span>
+			}
 		</div>
 	}
 }
 
-script executeCommand(serverId string, commandTemplate string, commandName string) {
-	const btn = event.target;
-	btn.disabled = true;
-	btn.textContent = "Executing...";
-
-	// Clear previous error states and responses
-	const card = btn.closest(".card");
-	card.querySelectorAll(".input-error").forEach(el => {
-		el.classList.remove("input-error");
-	});
-	const responseDiv = card.querySelector(".command-response");
-	const responseContent = card.querySelector(".response-content");
-	if (responseDiv) {
-		responseDiv.classList.add("hidden");
+templ LogPartial(logs []store.CommandLog) {
+	if len(logs) == 0 {
+		<p class="text-gray-500 text-sm py-4">No commands logged.</p>
+	} else {
+		<div class="overflow-x-auto">
+			<table class="table table-sm">
+				<thead>
+					<tr>
+						<th class="text-xs text-gray-400">Time</th>
+						<th class="text-xs text-gray-400">User</th>
+						<th class="text-xs text-gray-400">Server</th>
+						<th class="text-xs text-gray-400">Command</th>
+						<th class="text-xs text-gray-400">Response</th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, log := range logs {
+						<tr class="hover">
+							<td class="text-xs text-gray-400">{ log.Timestamp.Format(time.DateTime) }</td>
+							<td class="text-xs text-gray-300">{ log.UserEmail }</td>
+							<td class="text-xs text-gray-300">{ log.ServerID }</td>
+							<td class="text-xs font-mono text-blue-300">{ log.Command }</td>
+							<td class="text-xs font-mono text-gray-400 truncate max-w-xs">{ log.Response }</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
 	}
-	if (responseContent) {
-		responseContent.textContent = "";
-		responseContent.className = "response-content text-xs font-mono p-3 rounded bg-base-300 whitespace-pre-wrap break-all";
-	}
-
-	// Collect parameter values and validate list-type inputs
-	let command = commandTemplate;
-	let hasError = false;
-	const paramInputs = btn.closest(".card").querySelectorAll("[id^='param_']");
-	paramInputs.forEach(input => {
-		// Strip scoped prefix param_{catIdx}_{tplIdx}_{name} → name
-		const paramName = input.id.replace(/^param_\d+_\d+_/, "");
-		const paramValue = input.value || "";
-
-		// Strict list validation: value must be one of the datalist options
-		const listId = input.getAttribute("list");
-		if (listId) {
-			const allowed = [...document.querySelectorAll("#" + listId + " option")]
-				.map(o => o.value);
-			if (!allowed.includes(paramValue)) {
-				input.classList.add("input-error");
-				hasError = true;
-				return;
-			}
-		}
-
-		command = command.replace("{{" + paramName + "}}", paramValue);
-	});
-
-	if (hasError) {
-		btn.disabled = false;
-		btn.textContent = "Execute";
-		return;
-	}
-
-	fetch("/api/commands/" + serverId, {
-		method: "POST",
-		headers: {
-			"Content-Type": "application/json"
-		},
-		body: JSON.stringify({
-			command: command
-		})
-	})
-	.then(r => {
-		if (!r.ok) return r.text().then(text => { throw new Error(text); });
-		return r.json();
-	})
-	.then(data => {
-		if (responseDiv && responseContent) {
-			responseDiv.classList.remove("hidden");
-			if (data.status === "executed") {
-				responseContent.classList.add("bg-green-900", "bg-opacity-30", "border", "border-green-600");
-				responseContent.textContent = "✓ " + (data.response || "Success");
-				btn.textContent = "Execute";
-			} else if (data.error) {
-				responseContent.classList.add("bg-red-900", "bg-opacity-30", "border", "border-red-600");
-				responseContent.textContent = "✗ Error: " + data.error;
-				btn.textContent = "Execute";
-			} else {
-				responseContent.classList.add("bg-green-900", "bg-opacity-30", "border", "border-green-600");
-				responseContent.textContent = "✓ Command executed!";
-				btn.textContent = "Execute";
-			}
-		}
-	})
-	.catch(err => {
-		if (responseDiv && responseContent) {
-			responseDiv.classList.remove("hidden");
-			responseContent.classList.add("bg-red-900", "bg-opacity-30", "border", "border-red-600");
-			responseContent.textContent = "✗ Failed to execute: " + err.message;
-		}
-		btn.textContent = "Execute";
-		console.error(err);
-	})
-	.finally(() => {
-		btn.disabled = false;
-	});
 }
 
-func countCommands(server config.ServerDef) int {
-	count := 0
-	for _, category := range server.Commands {
-		count += len(category.Templates)
+templ CommandResponsePartial(status string, response string, errMsg string, durationMS int64) {
+	if status == "executed" {
+		<div class="text-xs font-mono p-3 rounded bg-green-900 bg-opacity-30 border border-green-600 text-green-300">
+			✓ { response } <span class="text-gray-500">({ durationMS }ms)</span>
+		</div>
+	} else {
+		<div class="text-xs font-mono p-3 rounded bg-red-900 bg-opacity-30 border border-red-600 text-red-300">
+			✗ { errMsg }
+		</div>
 	}
-	return count
+}
+
+templ PlayerOptionsPartial(players []string) {
+	for _, p := range players {
+		<option value={ p }>{ p }</option>
+	}
+}
+
+templ PowerPartial(serverID string, desiredState string) {
+	if desiredState == "running" {
+		<div class="flex items-center gap-2">
+			<span class="text-xs text-green-400 font-semibold">Desired: Running</span>
+			<button
+				hx-post={ fmt.Sprintf("/api/servers/%s/power", serverID) }
+				hx-vals='{"state": "stopped"}'
+				hx-target="#power-toggle"
+				hx-swap="innerHTML"
+				class="btn btn-sm btn-outline btn-error"
+			>
+				Stop Server
+			</button>
+		</div>
+	} else {
+		<div class="flex items-center gap-2">
+			<span class="text-xs text-red-400 font-semibold">Desired: Stopped</span>
+			<button
+				hx-post={ fmt.Sprintf("/api/servers/%s/power", serverID) }
+				hx-vals='{"state": "running"}'
+				hx-target="#power-toggle"
+				hx-swap="innerHTML"
+				class="btn btn-sm btn-outline btn-success"
+			>
+				Start Server
+			</button>
+		</div>
+	}
 }

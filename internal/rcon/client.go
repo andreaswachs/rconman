@@ -3,9 +3,12 @@ package rcon
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net"
 	"strings"
 	"sync"
+	"sync/atomic"
+	"time"
 )
 
 // Client interface defines the RCON client contract
@@ -18,12 +21,13 @@ type Client interface {
 
 // RealClient implements the Client interface with actual network connectivity
 type RealClient struct {
-	host      string
-	port      int
-	password  string
-	conn      net.Conn
-	requestID int32
-	mu        sync.Mutex
+	host         string
+	port         int
+	password     string
+	conn         net.Conn
+	requestID    int32
+	mu           sync.Mutex
+	reconnecting atomic.Bool
 }
 
 // NewRealClient creates a new RCON client (does not connect until first use)
@@ -91,6 +95,30 @@ func (rc *RealClient) Send(ctx context.Context, command string) (string, error) 
 		return "", err
 	}
 
+	resp, err := rc.sendPacket(ctx, command)
+	if err != nil {
+		// Connection error: close and attempt one immediate reconnect
+		rc.closeConn()
+		if reconnectErr := rc.ensureConnected(ctx); reconnectErr != nil {
+			// Immediate reconnect failed — start background reconnect, return error
+			rc.startBackgroundReconnect()
+			return "", err
+		}
+		// Reconnect succeeded — retry the command
+		resp, err = rc.sendPacket(ctx, command)
+		if err != nil {
+			rc.closeConn()
+			rc.startBackgroundReconnect()
+			return "", err
+		}
+	}
+
+	return resp.Payload, nil
+}
+
+// sendPacket encodes and sends a command, returning the decoded response.
+// Must be called with mu held.
+func (rc *RealClient) sendPacket(ctx context.Context, command string) (*Packet, error) {
 	if deadline, ok := ctx.Deadline(); ok {
 		rc.conn.SetDeadline(deadline) //nolint:errcheck
 	}
@@ -104,23 +132,56 @@ func (rc *RealClient) Send(ctx context.Context, command string) (string, error) 
 
 	data, err := packet.Encode()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	if _, err := rc.conn.Write(data); err != nil {
-		rc.conn.Close()
-		rc.conn = nil
-		return "", fmt.Errorf("failed to send command: %w", err)
+		return nil, fmt.Errorf("failed to send command: %w", err)
 	}
 
 	resp, err := DecodePacket(rc.conn)
 	if err != nil {
-		rc.conn.Close()
-		rc.conn = nil
-		return "", err
+		return nil, err
 	}
 
-	return resp.Payload, nil
+	return resp, nil
+}
+
+// closeConn closes the current connection and sets it to nil.
+// Must be called with mu held.
+func (rc *RealClient) closeConn() {
+	if rc.conn != nil {
+		rc.conn.Close()
+		rc.conn = nil
+	}
+}
+
+// startBackgroundReconnect spawns a background goroutine to reconnect with
+// exponential backoff. At most one goroutine runs at a time (atomic guard).
+func (rc *RealClient) startBackgroundReconnect() {
+	if rc.reconnecting.Swap(true) {
+		return // already reconnecting
+	}
+	go func() {
+		defer rc.reconnecting.Store(false)
+		backoff := time.Second
+		maxBackoff := 30 * time.Second
+		for {
+			rc.mu.Lock()
+			err := rc.ensureConnected(context.Background())
+			rc.mu.Unlock()
+			if err == nil {
+				slog.Info("RCON background reconnected", "host", rc.host, "port", rc.port)
+				return
+			}
+			slog.Debug("RCON background reconnect failed, retrying", "host", rc.host, "port", rc.port, "backoff", backoff, "err", err)
+			time.Sleep(backoff)
+			backoff *= 2
+			if backoff > maxBackoff {
+				backoff = maxBackoff
+			}
+		}
+	}()
 }
 
 // PlayerList retrieves the list of players from the server

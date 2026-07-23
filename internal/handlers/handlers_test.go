@@ -41,10 +41,11 @@ func TestStatusHandlerGetStatus(t *testing.T) {
 	mockClient := mock.New()
 	rcons["test-server"] = mockClient
 
-	handler := NewStatusHandler(rcons)
+	cache := NewStatusCache([]string{"test-server"})
+	handler := NewStatusHandler(rcons, cache)
 
 	// Test
-	req := httptest.NewRequest("GET", "/api/status/test-server", nil)
+	req := httptest.NewRequest("GET", "/api/servers/test-server/status", nil)
 	w := httptest.NewRecorder()
 
 	handler.GetStatus(w, req)
@@ -64,8 +65,8 @@ type stubMiddleware struct {
 	callbackErr error
 }
 
-func (s *stubMiddleware) AuthCodeURL(ctx context.Context) string { return "https://provider/auth" }
-func (s *stubMiddleware) HandleCallback(ctx context.Context, code, state string) (string, string, error) {
+func (s *stubMiddleware) AuthCodeURL(w http.ResponseWriter, r *http.Request) string { return "https://provider/auth" }
+func (s *stubMiddleware) HandleCallback(w http.ResponseWriter, r *http.Request, code, state string) (string, string, error) {
 	return "", "", s.callbackErr
 }
 func (s *stubMiddleware) CreateSession(w http.ResponseWriter, r *http.Request, email, role string) error {

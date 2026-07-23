@@ -26,4 +26,13 @@ type Store interface {
 
 	// PruneOlderThan deletes command logs older than the specified age.
 	PruneOlderThan(ctx context.Context, age time.Duration) error
+
+	// GetDesiredState returns the desired state (1=running, 0=stopped) for a server.
+	GetDesiredState(ctx context.Context, serverID string) (int, error)
+
+	// SetDesiredState sets the desired state for a server.
+	SetDesiredState(ctx context.Context, serverID string, state int) error
+
+	// GetAllDesiredStates returns a map of server_id to desired state.
+	GetAllDesiredStates(ctx context.Context) (map[string]int, error)
 }

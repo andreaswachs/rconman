@@ -1,15 +1,20 @@
 package e2e
 
 import (
+	"net/http"
+	"strings"
 	"testing"
 )
 
-func TestExecuteCommand(t *testing.T) {
-	// TODO: Test command execution
-	t.Skip("e2e tests not yet implemented")
-}
+func TestExecuteCommandUnauthenticated(t *testing.T) {
+	resp, err := http.Post(baseURL()+"/api/commands/my-server", "application/json",
+		strings.NewReader(`{"command":"list"}`))
+	if err != nil {
+		t.Skipf("rconman not reachable: %v", err)
+	}
+	defer resp.Body.Close()
 
-func TestGetPlayers(t *testing.T) {
-	// TODO: Test player list retrieval
-	t.Skip("e2e tests not yet implemented")
+	if resp.StatusCode != http.StatusFound {
+		t.Errorf("expected 302 for unauthenticated request, got %d", resp.StatusCode)
+	}
 }

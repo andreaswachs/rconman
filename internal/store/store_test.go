@@ -8,13 +8,15 @@ import (
 
 // MockStore is an in-memory implementation of Store for testing.
 type MockStore struct {
-	logs []CommandLog
+	logs         []CommandLog
+	desiredState map[string]int
 }
 
 // NewMockStore creates a new MockStore instance.
 func NewMockStore() *MockStore {
 	return &MockStore{
-		logs: make([]CommandLog, 0),
+		logs:         make([]CommandLog, 0),
+		desiredState: make(map[string]int),
 	}
 }
 
@@ -52,6 +54,29 @@ func (m *MockStore) PruneOlderThan(ctx context.Context, age time.Duration) error
 	}
 	m.logs = filtered
 	return nil
+}
+
+// GetDesiredState returns the desired state for a server (default 1=running).
+func (m *MockStore) GetDesiredState(ctx context.Context, serverID string) (int, error) {
+	if state, ok := m.desiredState[serverID]; ok {
+		return state, nil
+	}
+	return 1, nil
+}
+
+// SetDesiredState sets the desired state for a server.
+func (m *MockStore) SetDesiredState(ctx context.Context, serverID string, state int) error {
+	m.desiredState[serverID] = state
+	return nil
+}
+
+// GetAllDesiredStates returns all desired states.
+func (m *MockStore) GetAllDesiredStates(ctx context.Context) (map[string]int, error) {
+	result := make(map[string]int)
+	for k, v := range m.desiredState {
+		result[k] = v
+	}
+	return result, nil
 }
 
 // TestMockStoreRecordCommand tests recording a command.

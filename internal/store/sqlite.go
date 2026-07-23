@@ -41,6 +41,12 @@ func NewSQLiteStore(dbPath string) (*SQLiteStore, error) {
 	CREATE INDEX IF NOT EXISTS idx_command_logs_timestamp ON command_logs(timestamp DESC);
 	CREATE INDEX IF NOT EXISTS idx_command_logs_server_id ON command_logs(server_id);
 	CREATE INDEX IF NOT EXISTS idx_command_logs_user_email ON command_logs(user_email);
+
+	CREATE TABLE IF NOT EXISTS server_desired_state (
+		server_id TEXT PRIMARY KEY,
+		desired_state INTEGER NOT NULL DEFAULT 1,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
 	`
 
 	if _, err := db.Exec(schema); err != nil {
@@ -99,4 +105,46 @@ func (s *SQLiteStore) PruneOlderThan(ctx context.Context, age time.Duration) err
 // Close closes the database connection.
 func (s *SQLiteStore) Close() error {
 	return s.db.Close()
+}
+
+// GetDesiredState returns the desired state (1=running, 0=stopped) for a server.
+func (s *SQLiteStore) GetDesiredState(ctx context.Context, serverID string) (int, error) {
+	var state int
+	err := s.db.QueryRowContext(ctx,
+		`SELECT desired_state FROM server_desired_state WHERE server_id = ?`, serverID,
+	).Scan(&state)
+	if err == sql.ErrNoRows {
+		return 1, nil // default: running
+	}
+	return state, err
+}
+
+// SetDesiredState sets the desired state for a server.
+func (s *SQLiteStore) SetDesiredState(ctx context.Context, serverID string, state int) error {
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO server_desired_state (server_id, desired_state, updated_at)
+		 VALUES (?, ?, datetime('now'))
+		 ON CONFLICT(server_id) DO UPDATE SET desired_state = excluded.desired_state, updated_at = datetime('now')`,
+		serverID, state)
+	return err
+}
+
+// GetAllDesiredStates returns a map of server_id to desired state.
+func (s *SQLiteStore) GetAllDesiredStates(ctx context.Context) (map[string]int, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT server_id, desired_state FROM server_desired_state`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[string]int)
+	for rows.Next() {
+		var id string
+		var state int
+		if err := rows.Scan(&id, &state); err != nil {
+			return nil, err
+		}
+		result[id] = state
+	}
+	return result, rows.Err()
 }

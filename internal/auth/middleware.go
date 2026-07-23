@@ -116,17 +116,46 @@ func GetSessionFromContext(r *http.Request) (*Session, bool) {
 	return session, ok
 }
 
-// AuthCodeURL returns the OAuth2 authorization URL.
-func (m *Middleware) AuthCodeURL(ctx context.Context) string {
-	return m.config.AuthCodeURL("state")
+// AuthCodeURL generates a PKCE authorization URL and stores the verifier in a short-lived cookie.
+func (m *Middleware) AuthCodeURL(w http.ResponseWriter, r *http.Request) string {
+	verifier := oauth2.GenerateVerifier()
+	url := m.config.AuthCodeURL("state", oauth2.S256ChallengeOption(verifier))
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "pkce_verifier",
+		Value:    verifier,
+		Path:     "/",
+		MaxAge:   600,
+		HttpOnly: true,
+		Secure:   !m.insecureMode,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	return url
 }
 
-// HandleCallback processes the OAuth2 callback and returns user email and role.
-func (m *Middleware) HandleCallback(ctx context.Context, code, state string) (string, string, error) {
+// HandleCallback processes the OAuth2 callback, verifies PKCE, and returns user email and role.
+func (m *Middleware) HandleCallback(w http.ResponseWriter, r *http.Request, code, state string) (string, string, error) {
+	verifierCookie, err := r.Cookie("pkce_verifier")
+	if err != nil {
+		slog.Debug("PKCE verifier cookie not found", "err", err)
+		return "", "", fmt.Errorf("missing PKCE verifier: %w", err)
+	}
+
+	// Clear the PKCE cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     "pkce_verifier",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   !m.insecureMode,
+		SameSite: http.SameSiteLaxMode,
+	})
+
 	slog.Debug("exchanging auth code for token")
 
-	// Exchange code for token
-	token, err := m.config.Exchange(ctx, code)
+	token, err := m.config.Exchange(r.Context(), code, oauth2.VerifierOption(verifierCookie.Value))
 	if err != nil {
 		slog.Debug("auth code exchange failed", "err", err)
 		return "", "", fmt.Errorf("failed to exchange code: %w", err)
@@ -141,8 +170,8 @@ func (m *Middleware) HandleCallback(ctx context.Context, code, state string) (st
 	}
 
 	// Verify the ID token
-	verifier := m.provider.Verifier(&oidc.Config{ClientID: m.config.ClientID})
-	idToken, err := verifier.Verify(ctx, rawIDToken)
+	oidcVerifier := m.provider.Verifier(&oidc.Config{ClientID: m.config.ClientID})
+	idToken, err := oidcVerifier.Verify(r.Context(), rawIDToken)
 	if err != nil {
 		slog.Debug("ID token verification failed", "err", err)
 		return "", "", fmt.Errorf("failed to verify ID token: %w", err)

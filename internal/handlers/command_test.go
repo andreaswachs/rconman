@@ -174,3 +174,15 @@ func (ms *MockStore) GetLogs(ctx context.Context, limit int) ([]store.CommandLog
 func (ms *MockStore) PruneOlderThan(ctx context.Context, age time.Duration) error {
 	return nil
 }
+
+func (ms *MockStore) GetDesiredState(ctx context.Context, serverID string) (int, error) {
+	return 1, nil
+}
+
+func (ms *MockStore) SetDesiredState(ctx context.Context, serverID string, state int) error {
+	return nil
+}
+
+func (ms *MockStore) GetAllDesiredStates(ctx context.Context) (map[string]int, error) {
+	return map[string]int{}, nil
+}

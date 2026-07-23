@@ -1,15 +1,22 @@
 package e2e
 
 import (
+	"net/http"
 	"testing"
 )
 
-func TestOIDCLogin(t *testing.T) {
-	// TODO: Test OIDC login flow
-	t.Skip("e2e tests not yet implemented")
-}
+func TestOIDCLoginRedirectsToProvider(t *testing.T) {
+	resp, err := http.Get(baseURL() + "/auth/login")
+	if err != nil {
+		t.Skipf("rconman not reachable: %v", err)
+	}
+	defer resp.Body.Close()
 
-func TestSessionExpiry(t *testing.T) {
-	// TODO: Test session expiration
-	t.Skip("e2e tests not yet implemented")
+	if resp.StatusCode != http.StatusFound {
+		t.Errorf("expected 302, got %d", resp.StatusCode)
+	}
+	loc := resp.Header.Get("Location")
+	if loc == "" {
+		t.Error("expected Location header")
+	}
 }

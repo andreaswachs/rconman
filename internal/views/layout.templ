@@ -10,6 +10,7 @@ templ Layout(session *auth.Session) {
 		<meta name="viewport" content="width=device-width, initial-scale=1"/>
 		<title>rconman - Server Management</title>
 		<link rel="stylesheet" href="/static/app.css"/>
+		<script src="/static/htmx.min.js"></script>
 		<style>
 			body {
 				background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
@@ -31,9 +32,19 @@ templ Layout(session *auth.Session) {
 				box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3);
 				transform: translateY(-2px);
 			}
-			/* Constrain SVG icon sizes */
 			svg[class*="w-"] {
 				flex-shrink: 0;
+			}
+			.htmx-indicator {
+				opacity: 0;
+				transition: opacity 200ms ease-in;
+			}
+			.htmx-request .htmx-indicator {
+				opacity: 1;
+			}
+			.tab-active {
+				background: rgba(59,130,246,0.2);
+				border-color: rgba(59,130,246,0.5);
 			}
 		</style>
 	</head>
@@ -58,7 +69,7 @@ templ Layout(session *auth.Session) {
 			</div>
 		</nav>
 		<main class="min-h-screen">
-			<div class="container mx-auto px-4 py-12">
+			<div class="container mx-auto px-4 py-8">
 				{ children... }
 			</div>
 		</main>

@@ -5,7 +5,7 @@ tmp_dir = "tmp"
 [build]
   args_bin = ["-config", "config.dev.yaml"]
   bin = "./rconman"
-  cmd = "go build -o ./rconman ./cmd/rconman"
+  cmd = "templ generate && go build -o ./rconman ./cmd/rconman"
   delay = 1000
   exclude_dir = ["assets", "tmp", "test", "vendor", ".worktrees", "web/node_modules", "web/static"]
   exclude_file = []

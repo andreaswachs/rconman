@@ -1,12 +1,12 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -50,109 +50,160 @@ type ExecuteResponse struct {
 	Error      string `json:"error,omitempty"`
 }
 
-// Execute handles command execution.
+// Execute handles command execution. Supports both JSON API and HTMX form data.
 func (h *CommandHandler) Execute(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+	isHTMX := r.Header.Get("HX-Request") != ""
 
 	serverID := chi.URLParam(r, "id")
 	client, ok := h.rcons[serverID]
 	if !ok {
 		slog.Debug("execute request for unknown server", "server", serverID)
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(ExecuteResponse{
-			Status: "error",
-			Error:  "unknown server",
-		})
+		if isHTMX {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.WriteHeader(http.StatusNotFound)
+			views.CommandResponsePartial("error", "", "unknown server", 0).Render(r.Context(), w)
+		} else {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(ExecuteResponse{Status: "error", Error: "unknown server"})
+		}
 		return
 	}
 
-	// Get session from context
 	session, ok := auth.GetSessionFromContext(r)
 	if !ok {
 		slog.Debug("execute request without valid session", "server", serverID)
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(ExecuteResponse{
-			Status: "error",
-			Error:  "unauthorized",
-		})
+		if isHTMX {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.WriteHeader(http.StatusUnauthorized)
+			views.CommandResponsePartial("error", "", "unauthorized", 0).Render(r.Context(), w)
+		} else {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			json.NewEncoder(w).Encode(ExecuteResponse{Status: "error", Error: "unauthorized"})
+		}
 		return
 	}
 
-	// Parse command from request body
-	var req ExecuteRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		slog.Debug("execute request with invalid body", "server", serverID, "user", session.Email, "err", err)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ExecuteResponse{
-			Status: "error",
-			Error:  "invalid request body",
-		})
-		return
+	// Parse command from request
+	var command string
+	if isHTMX {
+		r.ParseForm()
+		tmpl := r.FormValue("command_template")
+		if tmpl != "" {
+			command = tmpl
+			for key, values := range r.Form {
+				if key == "command_template" || len(values) == 0 {
+					continue
+				}
+				command = strings.ReplaceAll(command, "{{"+key+"}}", values[0])
+			}
+		} else {
+			command = r.FormValue("command")
+		}
+	} else {
+		var req ExecuteRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			slog.Debug("execute request with invalid body", "server", serverID, "user", session.Email, "err", err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(ExecuteResponse{Status: "error", Error: "invalid request body"})
+			return
+		}
+		command = req.Command
 	}
 
-	// Validate command is not empty
-	if req.Command == "" {
+	// Validate command
+	if command == "" {
 		slog.Debug("execute request with empty command", "server", serverID, "user", session.Email)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ExecuteResponse{
-			Status: "error",
-			Error:  "command cannot be empty",
-		})
+		if isHTMX {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.WriteHeader(http.StatusBadRequest)
+			views.CommandResponsePartial("error", "", "command cannot be empty", 0).Render(r.Context(), w)
+		} else {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(ExecuteResponse{Status: "error", Error: "command cannot be empty"})
+		}
 		return
 	}
 
-	slog.Debug("executing RCON command", "server", serverID, "user", session.Email, "command", req.Command)
+	if strings.Contains(command, "\x00") {
+		slog.Debug("execute request with null bytes", "server", serverID, "user", session.Email)
+		if isHTMX {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.WriteHeader(http.StatusBadRequest)
+			views.CommandResponsePartial("error", "", "command contains null bytes", 0).Render(r.Context(), w)
+		} else {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(ExecuteResponse{Status: "error", Error: "command contains null bytes"})
+		}
+		return
+	}
+
+	if len(command) > 4096 {
+		slog.Debug("execute request exceeds size limit", "server", serverID, "user", session.Email, "len", len(command))
+		if isHTMX {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.WriteHeader(http.StatusBadRequest)
+			views.CommandResponsePartial("error", "", "command exceeds maximum length of 4096 bytes", 0).Render(r.Context(), w)
+		} else {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(ExecuteResponse{Status: "error", Error: "command exceeds maximum length of 4096 bytes"})
+		}
+		return
+	}
+
+	slog.Debug("executing RCON command", "server", serverID, "user", session.Email, "command", command)
 
 	// Execute command via RCON
 	start := time.Now()
-	response, err := client.Send(r.Context(), req.Command)
+	response, err := client.Send(r.Context(), command)
 	durationMS := time.Since(start).Milliseconds()
 
-	// Prepare response
-	execResp := ExecuteResponse{
-		Status:     "executed",
-		DurationMS: durationMS,
-	}
-
 	if err != nil {
-		execResp.Status = "error"
-		execResp.Error = err.Error()
 		response = ""
 		slog.Info("command execution failed",
-			"server", serverID,
-			"user", session.Email,
-			"command", req.Command,
-			"duration_ms", durationMS,
-			"err", err,
-		)
+			"server", serverID, "user", session.Email, "command", command,
+			"duration_ms", durationMS, "err", err)
 	} else {
-		execResp.Response = response
 		slog.Info("command executed",
-			"server", serverID,
-			"user", session.Email,
-			"command", req.Command,
-			"duration_ms", durationMS,
-		)
-		slog.Debug("command response", "server", serverID, "user", session.Email, "command", req.Command, "response", response)
+			"server", serverID, "user", session.Email, "command", command,
+			"duration_ms", durationMS)
 	}
 
-	// Record in store if available
+	// Record in store
 	if h.store != nil {
-		if err := h.store.RecordCommand(r.Context(), session.Email, serverID, req.Command, response, durationMS); err != nil {
+		if err := h.store.RecordCommand(r.Context(), session.Email, serverID, command, response, durationMS); err != nil {
 			slog.Error("failed to record command", "server", serverID, "user", session.Email, "err", err)
 		}
 	}
 
 	// Return response
-	w.Header().Set("Content-Type", "application/json")
-	if execResp.Status == "error" {
-		w.WriteHeader(http.StatusInternalServerError)
+	if isHTMX {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			views.CommandResponsePartial("error", "", err.Error(), durationMS).Render(r.Context(), w)
+		} else {
+			w.WriteHeader(http.StatusOK)
+			views.CommandResponsePartial("executed", response, "", durationMS).Render(r.Context(), w)
+		}
 	} else {
-		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		execResp := ExecuteResponse{Status: "executed", Response: response, DurationMS: durationMS}
+		if err != nil {
+			execResp.Status = "error"
+			execResp.Error = err.Error()
+			execResp.Response = ""
+			w.WriteHeader(http.StatusInternalServerError)
+		} else {
+			w.WriteHeader(http.StatusOK)
+		}
+		json.NewEncoder(w).Encode(execResp)
 	}
-	json.NewEncoder(w).Encode(execResp)
 }
 
 // LogsResponse represents the response from logs retrieval.
@@ -198,27 +249,10 @@ func (h *CommandHandler) GetLogs(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// StatusHandler handles server status queries.
-type StatusHandler struct {
-	rcons map[string]rcon.Client
-}
-
-// NewStatusHandler creates a status handler.
-func NewStatusHandler(rcons map[string]rcon.Client) *StatusHandler {
-	return &StatusHandler{rcons: rcons}
-}
-
-// GetStatus returns server status.
-func (h *StatusHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
-	// TODO: Implement status retrieval
-	w.Header().Set("Content-Type", "application/json")
-	fmt.Fprint(w, `{"status":"offline"}`)
-}
-
 // authMiddleware is the interface AuthHandler requires from the auth middleware.
 type authMiddleware interface {
-	AuthCodeURL(ctx context.Context) string
-	HandleCallback(ctx context.Context, code, state string) (string, string, error)
+	AuthCodeURL(w http.ResponseWriter, r *http.Request) string
+	HandleCallback(w http.ResponseWriter, r *http.Request, code, state string) (string, string, error)
 	CreateSession(w http.ResponseWriter, r *http.Request, email, role string) error
 	ClearSession(w http.ResponseWriter, r *http.Request) error
 }
@@ -250,7 +284,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate authorization URL
-	authURL := h.middleware.AuthCodeURL(r.Context())
+	authURL := h.middleware.AuthCodeURL(w, r)
 	if authURL == "" {
 		slog.Error("failed to generate auth URL")
 		http.Error(w, "failed to generate auth URL", http.StatusInternalServerError)
@@ -283,7 +317,7 @@ func (h *AuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	slog.Debug("handling OIDC auth callback")
 
 	// Exchange code for token
-	email, role, err := h.middleware.HandleCallback(r.Context(), code, state)
+	email, role, err := h.middleware.HandleCallback(w, r, code, state)
 	if err != nil {
 		if errors.Is(err, auth.ErrLoginDenied) {
 			slog.Debug("auth callback: login denied, redirecting")

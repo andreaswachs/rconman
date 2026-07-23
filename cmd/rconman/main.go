@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"embed"
 	"flag"
 	"fmt"
 	"log"
@@ -19,11 +18,6 @@ import (
 	"github.com/your-org/rconman/internal/server"
 	"github.com/your-org/rconman/internal/store"
 )
-
-// StaticFS would embed static assets: //go:embed ../../web/static
-// Due to Go embed limitations, static files are served from disk in development
-// and should be embedded during production builds
-var StaticFS embed.FS
 
 func main() {
 	configPath := flag.String("config", "config.yaml", "Path to config file")
@@ -64,6 +58,31 @@ func main() {
 		os.Exit(1)
 	}
 	defer st.Close()
+
+	// Start log pruning goroutine
+	if cfg.Store.Retention != "" {
+		retention, err := time.ParseDuration(cfg.Store.Retention)
+		if err != nil {
+			slog.Error("failed to parse store retention duration", "err", err)
+			os.Exit(1)
+		}
+		go startLogPruner(st, retention)
+	}
+
+	// Seed desired states for configured servers (default: running)
+	for _, srv := range cfg.Minecraft.Servers {
+		current, err := st.GetDesiredState(context.Background(), srv.ID)
+		if err != nil {
+			slog.Warn("failed to get desired state, seeding default", "server", srv.ID, "err", err)
+			if err := st.SetDesiredState(context.Background(), srv.ID, 1); err != nil {
+				slog.Error("failed to seed desired state", "server", srv.ID, "err", err)
+			}
+			continue
+		}
+		if current == 0 {
+			slog.Info("server desired state is stopped", "server", srv.ID)
+		}
+	}
 
 	// Initialize RCON clients
 	rcons := make(map[string]rcon.Client)
@@ -149,4 +168,24 @@ func main() {
 	}
 
 	slog.Info("server stopped")
+}
+
+func startLogPruner(st store.Store, retention time.Duration) {
+	ticker := time.NewTicker(24 * time.Hour)
+	defer ticker.Stop()
+
+	prune := func() {
+		if err := st.PruneOlderThan(context.Background(), retention); err != nil {
+			slog.Error("log pruning failed", "err", err)
+		} else {
+			slog.Debug("log pruning completed")
+		}
+	}
+
+	// Prune shortly after startup (non-blocking)
+	prune()
+
+	for range ticker.C {
+		prune()
+	}
 }
