@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -81,6 +82,44 @@ func main() {
 		}
 		if current == 0 {
 			slog.Info("server desired state is stopped", "server", srv.ID)
+		}
+	}
+
+	// Seed command templates from config (only if DB has none for that server yet)
+	for _, srv := range cfg.Minecraft.Servers {
+		if len(srv.Commands) == 0 {
+			continue
+		}
+		existing, err := st.GetTemplates(context.Background(), srv.ID)
+		if err != nil {
+			slog.Warn("failed to check existing templates", "server", srv.ID, "err", err)
+			continue
+		}
+		if len(existing) > 0 {
+			slog.Debug("templates already in DB, skipping seed", "server", srv.ID, "count", len(existing))
+			continue
+		}
+		seeded := 0
+		for _, cat := range srv.Commands {
+			for _, tmpl := range cat.Templates {
+				paramsJSON, _ := json.Marshal(tmpl.Params)
+				_, err := st.CreateTemplate(context.Background(), store.StoredTemplate{
+					ServerID:    srv.ID,
+					Category:    cat.Category,
+					Name:        tmpl.Name,
+					Description: tmpl.Description,
+					Command:     tmpl.Command,
+					Params:      string(paramsJSON),
+				})
+				if err != nil {
+					slog.Warn("failed to seed template", "server", srv.ID, "template", tmpl.Name, "err", err)
+				} else {
+					seeded++
+				}
+			}
+		}
+		if seeded > 0 {
+			slog.Info("seeded command templates from config", "server", srv.ID, "count", seeded)
 		}
 	}
 

@@ -185,7 +185,7 @@ func (c *Config) Validate() error {
 		}
 	}
 
-	// Validate list-type params reference an existing list
+	// Validate list-type params reference an existing list (only for config-seeded commands)
 	for _, server := range c.Minecraft.Servers {
 		for _, category := range server.Commands {
 			for _, tmpl := range category.Templates {

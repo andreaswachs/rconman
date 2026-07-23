@@ -86,11 +86,18 @@ func NewServer(
 
 		statusHandler := handlers.NewStatusHandler(rcons, statusCache)
 		powerHandler := handlers.NewPowerHandler(st)
+		templateHandler := handlers.NewTemplateHandler(st)
 		r.Route("/api/servers", func(r chi.Router) {
 			r.Get("/{id}/status", statusHandler.GetStatus)
 			r.Get("/{id}/players", statusHandler.GetPlayers)
 			r.Get("/{id}/power", powerHandler.GetPower)
 			r.Post("/{id}/power", powerHandler.SetPower)
+			r.Get("/{id}/templates", templateHandler.List)
+		})
+		r.Route("/api/templates", func(r chi.Router) {
+			r.Post("/{id}", templateHandler.Create)
+			r.Put("/{templateId}", templateHandler.Update)
+			r.Delete("/{templateId}", templateHandler.Delete)
 		})
 
 		// HTMX partials
@@ -102,6 +109,9 @@ func NewServer(
 			r.Get("/server/{id}/custom", partialHandler.CustomCommandPartial)
 			r.Get("/server/{id}/players", partialHandler.PlayersPartial)
 			r.Get("/server/{id}/power", partialHandler.PowerPartial)
+			r.Get("/server/{id}/manage", partialHandler.ManageCommandsPartial)
+			r.Get("/server/{id}/template", partialHandler.TemplateFormPartial)
+			r.Get("/server/{id}/template/{templateId}", partialHandler.TemplateFormPartial)
 			r.Get("/logs", partialHandler.LogPartial)
 		})
 

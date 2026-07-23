@@ -186,3 +186,19 @@ func (ms *MockStore) SetDesiredState(ctx context.Context, serverID string, state
 func (ms *MockStore) GetAllDesiredStates(ctx context.Context) (map[string]int, error) {
 	return map[string]int{}, nil
 }
+
+func (ms *MockStore) GetTemplates(ctx context.Context, serverID string) ([]store.StoredTemplate, error) {
+	return []store.StoredTemplate{}, nil
+}
+
+func (ms *MockStore) CreateTemplate(ctx context.Context, t store.StoredTemplate) (int64, error) {
+	return 1, nil
+}
+
+func (ms *MockStore) UpdateTemplate(ctx context.Context, t store.StoredTemplate) error {
+	return nil
+}
+
+func (ms *MockStore) DeleteTemplate(ctx context.Context, id int64) error {
+	return nil
+}

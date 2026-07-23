@@ -7,16 +7,27 @@ import (
 
 // CommandLog represents a recorded command execution.
 type CommandLog struct {
-	ID        int64
-	Timestamp time.Time
-	UserEmail string
-	ServerID  string
-	Command   string
-	Response  string
+	ID         int64
+	Timestamp  time.Time
+	UserEmail  string
+	ServerID   string
+	Command    string
+	Response   string
 	DurationMS int64
 }
 
-// Store defines the interface for command logging persistence.
+// StoredTemplate represents a command template stored in the database.
+type StoredTemplate struct {
+	ID          int64
+	ServerID    string
+	Category    string
+	Name        string
+	Description string
+	Command     string
+	Params      string // JSON array of config.TemplateParam
+}
+
+// Store defines the interface for persistence.
 type Store interface {
 	// RecordCommand stores a command execution log.
 	RecordCommand(ctx context.Context, email, serverID, command, response string, durationMS int64) error
@@ -35,4 +46,16 @@ type Store interface {
 
 	// GetAllDesiredStates returns a map of server_id to desired state.
 	GetAllDesiredStates(ctx context.Context) (map[string]int, error)
+
+	// GetTemplates returns all command templates for a server, grouped by category.
+	GetTemplates(ctx context.Context, serverID string) ([]StoredTemplate, error)
+
+	// CreateTemplate inserts a new command template.
+	CreateTemplate(ctx context.Context, t StoredTemplate) (int64, error)
+
+	// UpdateTemplate updates an existing command template by ID.
+	UpdateTemplate(ctx context.Context, t StoredTemplate) error
+
+	// DeleteTemplate removes a command template by ID.
+	DeleteTemplate(ctx context.Context, id int64) error
 }

@@ -107,6 +107,14 @@ templ ServerPartial(session *auth.Session, server config.ServerDef, lists map[st
 				>
 					Custom
 				</button>
+				<button
+					hx-get={ fmt.Sprintf("/partials/server/%s/manage", server.ID) }
+					hx-target="#commands"
+					hx-swap="innerHTML"
+					class="btn btn-sm border border-base-300 hover:border-blue-400 transition-colors"
+				>
+					Manage
+				</button>
 			}
 		</div>
 
@@ -351,4 +359,193 @@ templ PowerPartial(serverID string, desiredState string) {
 			</button>
 		</div>
 	}
+}
+
+templ ManageCommandsPartial(serverID string, categories []config.CommandCategory) {
+	<div>
+		<div class="flex items-center justify-between mb-4">
+			<h2 class="text-xl font-bold text-white">Manage Commands</h2>
+			<button
+				hx-get={ fmt.Sprintf("/partials/server/%s/template", serverID) }
+				hx-target="#template-form"
+				hx-swap="innerHTML"
+				class="btn btn-primary btn-sm"
+			>
+				+ New Template
+			</button>
+		</div>
+		<div id="template-form"></div>
+		if len(categories) == 0 {
+			<p class="text-gray-400 py-4">No command templates yet. Click "+ New Template" to create one.</p>
+		} else {
+			for _, cat := range categories {
+				<div class="mb-6">
+					<h3 class="text-base font-semibold text-blue-300 mb-3">{ cat.Category }</h3>
+					<div class="space-y-2">
+						for _, tmpl := range cat.Templates {
+							<div class="flex items-center justify-between bg-base-200 bg-opacity-50 rounded-lg px-4 py-2 border border-base-300">
+								<div>
+									<span class="text-sm font-medium text-white">{ tmpl.Name }</span>
+									<span class="text-xs text-gray-500 ml-2 font-mono">{ tmpl.Command }</span>
+								</div>
+								<div class="flex gap-1">
+									<button
+										hx-get={ fmt.Sprintf("/partials/server/%s", serverID) }
+										hx-target="#template-form"
+										hx-swap="innerHTML"
+										class="btn btn-ghost btn-xs"
+									></button>
+								</div>
+							</div>
+						}
+					</div>
+				</div>
+			}
+		}
+	</div>
+}
+
+templ TemplateFormPartial(serverID string, template *store.StoredTemplate) {
+	<div class="card bg-base-200 bg-opacity-50 border border-blue-400 mb-6">
+		<div class="card-body">
+			<h3 class="card-title text-lg text-white">
+				if template != nil {
+					Edit Template
+				} else {
+					New Template
+				}
+			</h3>
+			<form id="template-form-inner" class="space-y-4">
+				<div class="grid grid-cols-2 gap-4">
+					<div>
+						<label class="label"><span class="label-text text-xs text-gray-300">Name</span></label>
+						<input type="text" name="name" placeholder="e.g. Give Item" class="input input-bordered input-sm w-full" 
+							if template != nil { value={ template.Name } }
+						/>
+					</div>
+					<div>
+						<label class="label"><span class="label-text text-xs text-gray-300">Category</span></label>
+						<input type="text" name="category" placeholder="e.g. Player Management" class="input input-bordered input-sm w-full"
+							if template != nil { value={ template.Category } }
+						/>
+					</div>
+				</div>
+				<div>
+					<label class="label"><span class="label-text text-xs text-gray-300">Description</span></label>
+					<input type="text" name="description" placeholder="What this command does" class="input input-bordered input-sm w-full"
+						if template != nil { value={ template.Description } }
+					/>
+				</div>
+				<div>
+					<label class="label"><span class="label-text text-xs text-gray-300">Command (use &#123;&#123;param&#125;&#125; for placeholders)</span></label>
+					<input type="text" name="command" placeholder="e.g. give {{player}} {{item}} {{count}}" class="input input-bordered w-full font-mono text-sm"
+						if template != nil { value={ template.Command } }
+					/>
+				</div>
+				<div>
+					<div class="flex items-center justify-between mb-2">
+						<label class="label"><span class="label-text text-xs text-gray-300">Parameters</span></label>
+						<button type="button" class="btn btn-ghost btn-xs" onclick="addParamRow()">+ Add Param</button>
+					</div>
+					<div id="param-list" class="space-y-2"></div>
+				</div>
+				<div class="card-actions justify-end gap-2">
+					<button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('template-form').innerHTML=''">Cancel</button>
+					<button type="button" class="btn btn-primary btn-sm" onclick="saveTemplate()">Save Template</button>
+				</div>
+			</form>
+		</div>
+	</div>
+	<script>
+	let paramCounter = 0;
+	const serverID = "{ serverID }";
+	const templateID = template ? "{ template.ID }" : null;
+
+	function addParamRow(name, type, options) {
+		const row = document.createElement("div");
+		row.className = "flex items-center gap-2";
+		row.dataset.param = paramCounter++;
+		row.innerHTML = `
+			<input type="text" placeholder="param name" class="input input-bordered input-xs w-24" data-field="name" value="${name || ''}"/>
+			<select class="select select-bordered select-xs" data-field="type" onchange="onTypeChange(this)">
+				<option value="text">text</option>
+				<option value="select">select</option>
+				<option value="list">list</option>
+				<option value="number">number</option>
+				<option value="boolean">boolean</option>
+				<option value="player">player</option>
+			</select>
+			<input type="text" placeholder="options (comma-separated)" class="input input-bordered input-xs flex-1 hidden" data-field="options"/>
+			<input type="text" placeholder="list name" class="input input-bordered input-xs w-24 hidden" data-field="list"/>
+			<button type="button" class="btn btn-ghost btn-xs text-red-400" onclick="this.parentElement.remove()">✕</button>
+		`;
+		document.getElementById("param-list").appendChild(row);
+
+		const typeSel = row.querySelector('[data-field="type"]');
+		if (type) {
+			typeSel.value = type;
+			typeSel.dispatchEvent(new Event("change"));
+		}
+		const optsField = row.querySelector('[data-field="options"]');
+		if (options) {
+			optsField.value = options;
+		}
+	}
+
+	function onTypeChange(sel) {
+		const row = sel.parentElement;
+		const optsField = row.querySelector('[data-field="options"]');
+		const listField = row.querySelector('[data-field="list"]');
+		optsField.classList.add("hidden");
+		listField.classList.add("hidden");
+		if (sel.value === "select") {
+			optsField.classList.remove("hidden");
+		} else if (sel.value === "list") {
+			listField.classList.remove("hidden");
+		}
+	}
+
+	function collectParams() {
+		const params = [];
+		document.querySelectorAll("#param-list > div").forEach(row => {
+			const name = row.querySelector('[data-field="name"]').value;
+			if (!name) return;
+			const type = row.querySelector('[data-field="type"]').value;
+			const param = { name, type };
+			if (type === "select") {
+				const opts = row.querySelector('[data-field="options"]').value;
+				param.options = opts.split(",").map(s => s.trim()).filter(Boolean);
+			} else if (type === "list") {
+				param.list = row.querySelector('[data-field="list"]').value;
+			}
+			params.push(param);
+		});
+		return params;
+	}
+
+	function saveTemplate() {
+		const form = document.getElementById("template-form-inner");
+		const data = {
+			name: form.querySelector('[name="name"]').value,
+			category: form.querySelector('[name="category"]').value,
+			description: form.querySelector('[name="description"]').value,
+			command: form.querySelector('[name="command"]').value,
+			params: collectParams(),
+		};
+		const url = templateID
+			? "/api/templates/" + templateID
+			: "/api/templates/" + serverID;
+		const method = templateID ? "PUT" : "POST";
+		fetch(url, {
+			method,
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(data),
+		}).then(r => {
+			if (!r.ok) throw new Error("Save failed");
+			document.getElementById("template-form").innerHTML = "";
+			// Reload the manage view
+			htmx.ajax("GET", "/partials/server/" + serverID + "/manage", { target: "#commands", swap: "innerHTML" });
+		}).catch(err => alert(err.message));
+	}
+	</script>
 }

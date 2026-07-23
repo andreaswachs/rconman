@@ -47,6 +47,20 @@ func NewSQLiteStore(dbPath string) (*SQLiteStore, error) {
 		desired_state INTEGER NOT NULL DEFAULT 1,
 		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 	);
+
+	CREATE TABLE IF NOT EXISTS command_templates (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		server_id TEXT NOT NULL,
+		category TEXT NOT NULL,
+		name TEXT NOT NULL,
+		description TEXT NOT NULL DEFAULT '',
+		command TEXT NOT NULL,
+		params TEXT NOT NULL DEFAULT '[]',
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_command_templates_server_id ON command_templates(server_id);
 	`
 
 	if _, err := db.Exec(schema); err != nil {
@@ -147,4 +161,52 @@ func (s *SQLiteStore) GetAllDesiredStates(ctx context.Context) (map[string]int, 
 		result[id] = state
 	}
 	return result, rows.Err()
+}
+
+// GetTemplates returns all command templates for a server.
+func (s *SQLiteStore) GetTemplates(ctx context.Context, serverID string) ([]StoredTemplate, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, server_id, category, name, description, command, params
+		 FROM command_templates WHERE server_id = ? ORDER BY category, id`, serverID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var templates []StoredTemplate
+	for rows.Next() {
+		var t StoredTemplate
+		if err := rows.Scan(&t.ID, &t.ServerID, &t.Category, &t.Name, &t.Description, &t.Command, &t.Params); err != nil {
+			return nil, err
+		}
+		templates = append(templates, t)
+	}
+	return templates, rows.Err()
+}
+
+// CreateTemplate inserts a new command template.
+func (s *SQLiteStore) CreateTemplate(ctx context.Context, t StoredTemplate) (int64, error) {
+	res, err := s.db.ExecContext(ctx,
+		`INSERT INTO command_templates (server_id, category, name, description, command, params)
+		 VALUES (?, ?, ?, ?, ?, ?)`,
+		t.ServerID, t.Category, t.Name, t.Description, t.Command, t.Params)
+	if err != nil {
+		return 0, err
+	}
+	return res.LastInsertId()
+}
+
+// UpdateTemplate updates an existing command template by ID.
+func (s *SQLiteStore) UpdateTemplate(ctx context.Context, t StoredTemplate) error {
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE command_templates SET category=?, name=?, description=?, command=?, params=?, updated_at=datetime('now')
+		 WHERE id=?`,
+		t.Category, t.Name, t.Description, t.Command, t.Params, t.ID)
+	return err
+}
+
+// DeleteTemplate removes a command template by ID.
+func (s *SQLiteStore) DeleteTemplate(ctx context.Context, id int64) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM command_templates WHERE id=?`, id)
+	return err
 }

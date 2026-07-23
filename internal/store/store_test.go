@@ -10,6 +10,7 @@ import (
 type MockStore struct {
 	logs         []CommandLog
 	desiredState map[string]int
+	templates    []StoredTemplate
 }
 
 // NewMockStore creates a new MockStore instance.
@@ -17,6 +18,7 @@ func NewMockStore() *MockStore {
 	return &MockStore{
 		logs:         make([]CommandLog, 0),
 		desiredState: make(map[string]int),
+		templates:    make([]StoredTemplate, 0),
 	}
 }
 
@@ -77,6 +79,47 @@ func (m *MockStore) GetAllDesiredStates(ctx context.Context) (map[string]int, er
 		result[k] = v
 	}
 	return result, nil
+}
+
+// GetTemplates returns all templates for a server.
+func (m *MockStore) GetTemplates(ctx context.Context, serverID string) ([]StoredTemplate, error) {
+	var result []StoredTemplate
+	for _, t := range m.templates {
+		if t.ServerID == serverID {
+			result = append(result, t)
+		}
+	}
+	return result, nil
+}
+
+// CreateTemplate inserts a new template.
+func (m *MockStore) CreateTemplate(ctx context.Context, t StoredTemplate) (int64, error) {
+	t.ID = int64(len(m.templates) + 1)
+	m.templates = append(m.templates, t)
+	return t.ID, nil
+}
+
+// UpdateTemplate updates a template by ID.
+func (m *MockStore) UpdateTemplate(ctx context.Context, t StoredTemplate) error {
+	for i, existing := range m.templates {
+		if existing.ID == t.ID {
+			m.templates[i] = t
+			return nil
+		}
+	}
+	return nil
+}
+
+// DeleteTemplate removes a template by ID.
+func (m *MockStore) DeleteTemplate(ctx context.Context, id int64) error {
+	filtered := make([]StoredTemplate, 0, len(m.templates))
+	for _, t := range m.templates {
+		if t.ID != id {
+			filtered = append(filtered, t)
+		}
+	}
+	m.templates = filtered
+	return nil
 }
 
 // TestMockStoreRecordCommand tests recording a command.

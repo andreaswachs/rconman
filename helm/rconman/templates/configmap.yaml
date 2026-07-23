@@ -84,3 +84,13 @@ data:
             {{- toYaml . | nindent 12 }}
 {{- end }}
 {{- end }}
+
+{{- with .Values.config.lists }}
+    lists:
+{{- range $name, $entries := . }}
+      {{ $name }}:
+{{- range $entries }}
+        - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
