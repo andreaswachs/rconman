@@ -31,7 +31,7 @@ jobs:
         run: go mod download
 
       - name: Install templ CLI
-        run: go install github.com/a-h/templ/cmd/templ@latest
+        run: go install github.com/a-h/templ/cmd/templ@v0.3.1001
 
       - name: Build CSS
         working-directory: web
