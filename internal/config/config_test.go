@@ -292,7 +292,7 @@ func TestValidateConfig_ListEmpty(t *testing.T) {
 	}
 }
 
-func TestValidateConfig_ListParamReferenceMissing(t *testing.T) {
+func TestValidateConfig_ListParamMissingOptions(t *testing.T) {
 	cfg := &Config{
 		Server: ServerConfig{
 			SessionSecret: &SecretValue{Value: "this_is_a_very_long_secret_that_is_at_least_32_bytes_long"},
@@ -300,7 +300,6 @@ func TestValidateConfig_ListParamReferenceMissing(t *testing.T) {
 		Auth: AuthConfig{
 			OIDC: OIDCConfig{ClientSecret: &SecretValue{Value: "secret"}},
 		},
-		Lists: map[string][]string{},
 		Minecraft: MinecraftConfig{
 			Servers: []ServerDef{
 				{
@@ -318,7 +317,7 @@ func TestValidateConfig_ListParamReferenceMissing(t *testing.T) {
 									Name:    "cmd",
 									Command: "/cmd {x}",
 									Params: []TemplateParam{
-										{Name: "x", Type: "list", List: "missing-list"},
+										{Name: "x", Type: "list"},
 									},
 								},
 							},
@@ -330,7 +329,7 @@ func TestValidateConfig_ListParamReferenceMissing(t *testing.T) {
 	}
 	err := cfg.Validate()
 	if err == nil {
-		t.Fatal("expected error for list param referencing missing list")
+		t.Fatal("expected error for list param without options")
 	}
 }
 
@@ -341,9 +340,6 @@ func TestValidateConfig_ListParamValid(t *testing.T) {
 		},
 		Auth: AuthConfig{
 			OIDC: OIDCConfig{ClientSecret: &SecretValue{Value: "secret"}},
-		},
-		Lists: map[string][]string{
-			"pokemon": {"bulbasaur", "charmander", "squirtle"},
 		},
 		Minecraft: MinecraftConfig{
 			Servers: []ServerDef{
@@ -362,7 +358,7 @@ func TestValidateConfig_ListParamValid(t *testing.T) {
 									Name:    "cmd",
 									Command: "/cmd {x}",
 									Params: []TemplateParam{
-										{Name: "x", Type: "list", List: "pokemon"},
+										{Name: "x", Type: "list", Options: []string{"a", "b"}},
 									},
 								},
 							},

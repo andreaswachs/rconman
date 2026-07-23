@@ -110,15 +110,12 @@ type CommandTemplate struct {
 	Params      []TemplateParam `yaml:"params"`
 }
 
-// TemplateParam represents a parameter in a command template
+// TemplateParam represents a parameter in a command template.
+// Type is either "text" (free-form input) or "list" (predefined options).
 type TemplateParam struct {
-	Name    string        `yaml:"name"`
-	Type    string        `yaml:"type"`
-	Options []string      `yaml:"options"`
-	List    string        `yaml:"list"`
-	Default interface{}   `yaml:"default"`
-	Min     int           `yaml:"min"`
-	Max     int           `yaml:"max"`
+	Name    string   `yaml:"name"`
+	Type    string   `yaml:"type"`
+	Options []string `yaml:"options"`
 }
 
 // LoadConfig loads and parses the YAML configuration file, then validates it
@@ -185,18 +182,13 @@ func (c *Config) Validate() error {
 		}
 	}
 
-	// Validate list-type params reference an existing list (only for config-seeded commands)
+	// Validate list-type params have options defined (only for config-seeded commands)
 	for _, server := range c.Minecraft.Servers {
 		for _, category := range server.Commands {
 			for _, tmpl := range category.Templates {
 				for _, param := range tmpl.Params {
-					if param.Type == "list" {
-						if param.List == "" {
-							return fmt.Errorf("server %q category %q template %q param %q: type=list requires a 'list' field", server.ID, category.Category, tmpl.Name, param.Name)
-						}
-						if _, ok := c.Lists[param.List]; !ok {
-							return fmt.Errorf("server %q category %q template %q param %q: references undefined list %q", server.ID, category.Category, tmpl.Name, param.Name, param.List)
-						}
+					if param.Type == "list" && len(param.Options) == 0 {
+						return fmt.Errorf("server %q category %q template %q param %q: type=list requires at least one option", server.ID, category.Category, tmpl.Name, param.Name)
 					}
 				}
 			}

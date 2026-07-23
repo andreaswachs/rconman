@@ -134,6 +134,13 @@ func categoryTabClass(active bool) string {
 	return "btn btn-sm border border-base-300 hover:border-blue-400 transition-colors"
 }
 
+func templateIDStr(t *store.StoredTemplate) string {
+	if t != nil {
+		return fmt.Sprintf("%d", t.ID)
+	}
+	return ""
+}
+
 templ CategoryPartial(session *auth.Session, server config.ServerDef, catIndex int, lists map[string][]string) {
 	<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 		for _, template := range server.Commands[catIndex].Templates {
@@ -189,49 +196,11 @@ templ CategoryPartial(session *auth.Session, server config.ServerDef, catIndex i
 }
 
 templ paramInput(serverID string, param config.TemplateParam, lists map[string][]string) {
-	if (param.Type == "select" || param.Type == "enum") && len(param.Options) > 0 {
+	if param.Type == "list" && len(param.Options) > 0 {
 		<select name={ param.Name } class="select select-bordered select-sm w-full text-sm">
 			for _, opt := range param.Options {
 				<option value={ opt }>{ opt }</option>
 			}
-		</select>
-	} else if param.Type == "list" {
-		<input
-			type="text"
-			name={ param.Name }
-			autocomplete="off"
-			placeholder={ param.Name }
-			class="input input-bordered input-sm w-full text-sm"
-			list={ fmt.Sprintf("dl_%s_%s", serverID, param.Name) }
-		/>
-		<datalist id={ fmt.Sprintf("dl_%s_%s", serverID, param.Name) }>
-			for _, opt := range lists[param.List] {
-				<option value={ opt }></option>
-			}
-		</datalist>
-	} else if param.Type == "number" || param.Type == "int" {
-		<input
-			type="number"
-			name={ param.Name }
-			placeholder={ param.Name }
-			class="input input-bordered input-sm w-full text-sm"
-			if param.Min != 0 {
-				min={ fmt.Sprintf("%d", param.Min) }
-			}
-			if param.Max != 0 {
-				max={ fmt.Sprintf("%d", param.Max) }
-			}
-		/>
-	} else if param.Type == "boolean" {
-		<input type="checkbox" name={ param.Name } class="toggle toggle-sm toggle-primary"/>
-	} else if param.Type == "player" {
-		<select
-			name={ param.Name }
-			class="select select-bordered select-sm w-full text-sm"
-			hx-get={ fmt.Sprintf("/partials/server/%s/players", serverID) }
-			hx-trigger="load"
-			hx-swap="innerHTML"
-		>
 		</select>
 	} else {
 		<input type="text" name={ param.Name } placeholder={ param.Name } class="input input-bordered input-sm w-full text-sm"/>
@@ -408,7 +377,7 @@ templ ManageCommandsPartial(serverID string, categories []config.CommandCategory
 
 templ TemplateFormPartial(serverID string, template *store.StoredTemplate) {
 	<div class="card bg-base-200 bg-opacity-50 border border-blue-400 mb-6">
-		<div class="card-body">
+		<div class="card-body" data-server-id={ serverID } data-template-id={ templateIDStr(template) }>
 			<h3 class="card-title text-lg text-white">
 				if template != nil {
 					Edit Template
@@ -458,26 +427,26 @@ templ TemplateFormPartial(serverID string, template *store.StoredTemplate) {
 		</div>
 	</div>
 	<script>
-	let paramCounter = 0;
-	const serverID = "{ serverID }";
-	const templateID = template ? "{ template.ID }" : null;
+		// Guard against redeclaration when HTMX re-injects this partial
+		if (!window._templateState) {
+			window._templateState = { counter: 0 };
+		}
+		var card = document.querySelector("[data-server-id]");
+		var serverID = card.dataset.serverId;
+		var templateID = card.dataset.templateId || null;
+		window._templateState.counter = 0;
 
-	function addParamRow(name, type, options) {
+		function addParamRow(name, type, options) {
 		const row = document.createElement("div");
 		row.className = "flex items-center gap-2";
-		row.dataset.param = paramCounter++;
+		row.dataset.param = window._templateState.counter++;
 		row.innerHTML = `
-			<input type="text" placeholder="param name" class="input input-bordered input-xs w-24" data-field="name" value="${name || ''}"/>
+			<input type="text" placeholder="param name" class="input input-bordered input-xs w-28" data-field="name" value="${name || ''}"/>
 			<select class="select select-bordered select-xs" data-field="type" onchange="onTypeChange(this)">
-				<option value="text">text</option>
-				<option value="select">select</option>
-				<option value="list">list</option>
-				<option value="number">number</option>
-				<option value="boolean">boolean</option>
-				<option value="player">player</option>
+				<option value="text">free text</option>
+				<option value="list">from list</option>
 			</select>
 			<input type="text" placeholder="options (comma-separated)" class="input input-bordered input-xs flex-1 hidden" data-field="options"/>
-			<input type="text" placeholder="list name" class="input input-bordered input-xs w-24 hidden" data-field="list"/>
 			<button type="button" class="btn btn-ghost btn-xs text-red-400" onclick="this.parentElement.remove()">✕</button>
 		`;
 		document.getElementById("param-list").appendChild(row);
@@ -496,13 +465,9 @@ templ TemplateFormPartial(serverID string, template *store.StoredTemplate) {
 	function onTypeChange(sel) {
 		const row = sel.parentElement;
 		const optsField = row.querySelector('[data-field="options"]');
-		const listField = row.querySelector('[data-field="list"]');
 		optsField.classList.add("hidden");
-		listField.classList.add("hidden");
-		if (sel.value === "select") {
+		if (sel.value === "list") {
 			optsField.classList.remove("hidden");
-		} else if (sel.value === "list") {
-			listField.classList.remove("hidden");
 		}
 	}
 
@@ -513,11 +478,9 @@ templ TemplateFormPartial(serverID string, template *store.StoredTemplate) {
 			if (!name) return;
 			const type = row.querySelector('[data-field="type"]').value;
 			const param = { name, type };
-			if (type === "select") {
+			if (type === "list") {
 				const opts = row.querySelector('[data-field="options"]').value;
 				param.options = opts.split(",").map(s => s.trim()).filter(Boolean);
-			} else if (type === "list") {
-				param.list = row.querySelector('[data-field="list"]').value;
 			}
 			params.push(param);
 		});
