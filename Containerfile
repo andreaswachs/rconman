@@ -12,6 +12,7 @@ ARG TARGETARCH
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
+RUN go install github.com/a-h/templ/cmd/templ@v0.3.1001
 COPY . .
 COPY --from=css /web/static/app.css web/static/app.css
 RUN go generate ./...
