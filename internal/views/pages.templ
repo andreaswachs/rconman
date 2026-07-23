@@ -17,13 +17,14 @@ templ HomePage(session *auth.Session, servers []config.ServerDef) {
 			</div>
 		} else {
 			<div>
-				<div class="flex flex-wrap gap-2 mb-6">
+				<div class="flex flex-wrap gap-2 mb-6" id="server-pills">
 					for i, server := range servers {
 						<button
 							hx-get={ fmt.Sprintf("/partials/server/%s", server.ID) }
 							hx-target="#server-content"
 							hx-swap="innerHTML"
 							class={ serverPillClass(i == 0) }
+							onclick="document.querySelectorAll('#server-pills button').forEach(b => b.className = 'btn btn-sm border border-base-300 hover:border-blue-400 transition-colors'); this.className = 'btn btn-sm border border-blue-400 bg-blue-500 bg-opacity-20 text-blue-300'"
 						>
 							{ server.Name }
 						</button>
