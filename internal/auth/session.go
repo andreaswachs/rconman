@@ -35,11 +35,9 @@ func NewSessionManager(secret string, sessionExpiry time.Duration, insecureMode 
 }
 
 // CreateSession creates a new encrypted session cookie with email and role.
+// A stale/undecodable existing cookie is ignored — we're overwriting all values.
 func (sm *SessionManager) CreateSession(w http.ResponseWriter, r *http.Request, email, role string) error {
-	session, err := sm.store.Get(r, sm.sessionName)
-	if err != nil {
-		return err
-	}
+	session, _ := sm.store.Get(r, sm.sessionName)
 
 	expiresAt := time.Now().Add(sm.expiry)
 
@@ -97,11 +95,9 @@ func (sm *SessionManager) GetSession(r *http.Request) (*Session, error) {
 }
 
 // ClearSession clears the session cookie.
+// A stale/undecodable cookie is ignored — we're deleting it anyway.
 func (sm *SessionManager) ClearSession(w http.ResponseWriter, r *http.Request) error {
-	session, err := sm.store.Get(r, sm.sessionName)
-	if err != nil {
-		return err
-	}
+	session, _ := sm.store.Get(r, sm.sessionName)
 
 	session.Options.MaxAge = -1
 	return session.Save(r, w)
