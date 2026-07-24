@@ -17,11 +17,12 @@ templ HomePage(session *auth.Session, servers []config.ServerDef) {
 			</div>
 		} else {
 			<div>
-				<div id="server-selector"
-					hx-get="/partials/selector"
-					hx-trigger="load, every 10s"
-					hx-swap="innerHTML"
-				>
+			<div id="server-selector"
+				hx-get="/partials/selector"
+				hx-trigger="load, every 10s"
+				hx-swap="innerHTML"
+				hx-on::after-swap="if (!window._serverContentLoaded) { window._serverContentLoaded = true; var sel = event.target.querySelector('[data-selected-server]'); if (sel) htmx.ajax('GET', '/partials/server/' + sel.dataset.selectedServer, { target: '#server-content', swap: 'innerHTML' }); }"
+			>
 					<div class="flex items-center gap-2 text-gray-400 text-sm py-2">
 						<span class="loading loading-dots loading-sm"></span>
 					</div>
@@ -62,7 +63,7 @@ func serverName(servers []config.ServerDef, id string) string {
 }
 
 templ ServerSelectorPartial(selectedServerID string, servers []config.ServerDef, statuses map[string]bool) {
-	<div class="flex items-center gap-4 mb-6">
+	<div class="flex items-center gap-4 mb-6" data-selected-server={ selectedServerID }>
 		<div class="dropdown">
 			<div tabindex="0" role="button" class="btn btn-sm border border-base-300 gap-2 w-56 justify-start">
 				<span class={ fmt.Sprintf("w-2 h-2 rounded-full %s", dotClass(statuses[selectedServerID])) }></span>
@@ -87,12 +88,6 @@ templ ServerSelectorPartial(selectedServerID string, servers []config.ServerDef,
 				}
 			</ul>
 		</div>
-		<script>
-			if (!window._serverContentLoaded) {
-				window._serverContentLoaded = true;
-				htmx.ajax("GET", { fmt.Sprintf("%q", fmt.Sprintf("/partials/server/%s", selectedServerID)) }, { target: "#server-content", swap: "innerHTML" });
-			}
-		</script>
 	</div>
 }
 
