@@ -387,93 +387,103 @@ templ PlayersTabPartial(session *auth.Session, serverID string) {
 
 		<div id="player-response" class="mb-4"></div>
 
-		<div class="space-y-4">
-			<div>
-				<h3 class="text-sm font-semibold text-gray-400 mb-2">Moderation</h3>
-				<div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-					@playerAction(serverID, "kill {{player}}", "Kill", "btn-error")
-					@playerAction(serverID, "clear {{player}}", "Clear Inventory", "btn-warning")
-					@playerAction(serverID, "effect clear {{player}}", "Clear Effects", "btn-warning")
-					@playerAction(serverID, "pardon {{player}}", "Pardon", "btn-ghost")
-				</div>
-			</div>
-
-			<div>
-				<h3 class="text-sm font-semibold text-gray-400 mb-2">Kick / Ban</h3>
-				<div class="flex flex-col sm:flex-row gap-2">
-					<input type="text" id="reason" name="reason" placeholder="Reason (optional)" class="input input-bordered input-sm flex-1"/>
-					<form
-						hx-post={ fmt.Sprintf("/api/commands/%s", serverID) }
-						hx-include="#player-select, #reason"
-						hx-target="#player-response"
-						hx-swap="innerHTML"
-						hx-disabled-elt="find button"
-						class="inline"
-					>
-						<input type="hidden" name="command_template" value={ "kick {{player}} {{reason}}" }/>
-						<button type="submit" class="btn btn-sm btn-error w-full">Kick</button>
-					</form>
-					<form
-						hx-post={ fmt.Sprintf("/api/commands/%s", serverID) }
-						hx-include="#player-select, #reason"
-						hx-target="#player-response"
-						hx-swap="innerHTML"
-						hx-disabled-elt="find button"
-						class="inline"
-					>
-						<input type="hidden" name="command_template" value={ "ban {{player}} {{reason}}" }/>
-						<button type="submit" class="btn btn-sm btn-error w-full">Ban</button>
-					</form>
-				</div>
-			</div>
-
-			<div>
-				<h3 class="text-sm font-semibold text-gray-400 mb-2">Gamemode</h3>
-				<div class="grid grid-cols-3 gap-2">
-					@playerAction(serverID, "gamemode survival {{player}}", "Survival", "btn-ghost")
-					@playerAction(serverID, "gamemode creative {{player}}", "Creative", "btn-ghost")
-					@playerAction(serverID, "gamemode adventure {{player}}", "Adventure", "btn-ghost")
-				</div>
-			</div>
-
-			<div>
-				<h3 class="text-sm font-semibold text-gray-400 mb-2">Teleport</h3>
-				<div class="flex flex-col sm:flex-row gap-2 items-end">
-					<div class="flex-1 w-full">
-						<label class="label">
-							<span class="label-text text-xs text-gray-300">Target</span>
-						</label>
-						<select name="target" class="select select-bordered select-sm w-full text-sm"
-							hx-get={ fmt.Sprintf("/partials/server/%s/player-options", serverID) }
-							hx-trigger="load, every 10s"
-							hx-target="this"
-							hx-swap="innerHTML"
-						>
-							<option value="">Loading players...</option>
-						</select>
+		<div class="space-y-2">
+			<details class="rounded-lg border border-base-300 bg-base-200 bg-opacity-50">
+				<summary class="cursor-pointer px-4 py-2 text-sm font-semibold text-gray-300 select-none">Moderation</summary>
+				<div class="px-4 pb-4 pt-2">
+					<div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+						@playerAction(serverID, "kill {{player}}", "Kill", "btn-error")
+						@playerAction(serverID, "clear {{player}}", "Clear Inventory", "btn-warning")
+						@playerAction(serverID, "effect clear {{player}}", "Clear Effects", "btn-warning")
+						@playerAction(serverID, "pardon {{player}}", "Pardon", "btn-ghost")
 					</div>
-					<form
-						hx-post={ fmt.Sprintf("/api/commands/%s", serverID) }
-						hx-include="#player-select"
-						hx-target="#player-response"
-						hx-swap="innerHTML"
-						hx-disabled-elt="find button"
-						class="inline"
-					>
-						<input type="hidden" name="command_template" value={ "tp {{player}} {{target}}" }/>
-						<button type="submit" class="btn btn-sm btn-primary w-full">TP</button>
-					</form>
 				</div>
-			</div>
+			</details>
+
+			<details class="rounded-lg border border-base-300 bg-base-200 bg-opacity-50">
+				<summary class="cursor-pointer px-4 py-2 text-sm font-semibold text-gray-300 select-none">Kick / Ban</summary>
+				<div class="px-4 pb-4 pt-2">
+					<div class="flex flex-col sm:flex-row gap-2">
+						<input type="text" id="reason" name="reason" placeholder="Reason (optional)" class="input input-bordered input-sm flex-1"/>
+						<form
+							hx-post={ fmt.Sprintf("/api/commands/%s", serverID) }
+							hx-include="#player-select, #reason"
+							hx-target="#player-response"
+							hx-swap="innerHTML"
+							hx-disabled-elt="find button"
+							class="inline"
+						>
+							<input type="hidden" name="command_template" value={ "kick {{player}} {{reason}}" }/>
+							<button type="submit" class="btn btn-sm btn-error w-full">Kick</button>
+						</form>
+						<form
+							hx-post={ fmt.Sprintf("/api/commands/%s", serverID) }
+							hx-include="#player-select, #reason"
+							hx-target="#player-response"
+							hx-swap="innerHTML"
+							hx-disabled-elt="find button"
+							class="inline"
+						>
+							<input type="hidden" name="command_template" value={ "ban {{player}} {{reason}}" }/>
+							<button type="submit" class="btn btn-sm btn-error w-full">Ban</button>
+						</form>
+					</div>
+				</div>
+			</details>
+
+			<details class="rounded-lg border border-base-300 bg-base-200 bg-opacity-50">
+				<summary class="cursor-pointer px-4 py-2 text-sm font-semibold text-gray-300 select-none">Gamemode</summary>
+				<div class="px-4 pb-4 pt-2">
+					<div class="grid grid-cols-3 gap-2">
+						@playerAction(serverID, "gamemode survival {{player}}", "Survival", "btn-ghost")
+						@playerAction(serverID, "gamemode creative {{player}}", "Creative", "btn-ghost")
+						@playerAction(serverID, "gamemode adventure {{player}}", "Adventure", "btn-ghost")
+					</div>
+				</div>
+			</details>
+
+			<details class="rounded-lg border border-base-300 bg-base-200 bg-opacity-50">
+				<summary class="cursor-pointer px-4 py-2 text-sm font-semibold text-gray-300 select-none">Teleport</summary>
+				<div class="px-4 pb-4 pt-2">
+					<div class="flex flex-col sm:flex-row gap-2 items-end">
+						<div class="flex-1 w-full">
+							<label class="label">
+								<span class="label-text text-xs text-gray-300">Target</span>
+							</label>
+							<select name="target" class="select select-bordered select-sm w-full text-sm"
+								hx-get={ fmt.Sprintf("/partials/server/%s/player-options", serverID) }
+								hx-trigger="load, every 10s"
+								hx-target="this"
+								hx-swap="innerHTML"
+							>
+								<option value="">Loading players...</option>
+							</select>
+						</div>
+						<form
+							hx-post={ fmt.Sprintf("/api/commands/%s", serverID) }
+							hx-include="#player-select"
+							hx-target="#player-response"
+							hx-swap="innerHTML"
+							hx-disabled-elt="find button"
+							class="inline"
+						>
+							<input type="hidden" name="command_template" value={ "tp {{player}} {{target}}" }/>
+							<button type="submit" class="btn btn-sm btn-primary w-full">TP</button>
+						</form>
+					</div>
+				</div>
+			</details>
 
 			if session.Role == "admin" {
-				<div>
-					<h3 class="text-sm font-semibold text-gray-400 mb-2">Admin</h3>
-					<div class="grid grid-cols-2 gap-2">
-						@playerAction(serverID, "op {{player}}", "OP", "btn-primary")
-						@playerAction(serverID, "deop {{player}}", "Deop", "btn-ghost")
+				<details class="rounded-lg border border-base-300 bg-base-200 bg-opacity-50">
+					<summary class="cursor-pointer px-4 py-2 text-sm font-semibold text-gray-300 select-none">Admin</summary>
+					<div class="px-4 pb-4 pt-2">
+						<div class="grid grid-cols-2 gap-2">
+							@playerAction(serverID, "op {{player}}", "OP", "btn-primary")
+							@playerAction(serverID, "deop {{player}}", "Deop", "btn-ghost")
+						</div>
 					</div>
-				</div>
+				</details>
 			}
 		</div>
 	</div>
