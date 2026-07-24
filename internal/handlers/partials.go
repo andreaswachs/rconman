@@ -162,6 +162,31 @@ func (h *PartialHandler) PlayersPartial(w http.ResponseWriter, r *http.Request) 
 	views.PlayerOptionsPartial(paramName, players).Render(r.Context(), w)
 }
 
+func (h *PartialHandler) PlayerOptions(w http.ResponseWriter, r *http.Request) {
+	serverID := chi.URLParam(r, "id")
+	status := h.cache.Get(serverID)
+	players := status.Players
+	if players == nil {
+		players = []string{}
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	views.PlayerOptions(players).Render(r.Context(), w)
+}
+
+func (h *PartialHandler) PlayersTabPartial(w http.ResponseWriter, r *http.Request) {
+	session, ok := auth.GetSessionFromContext(r)
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	serverID := chi.URLParam(r, "id")
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	views.PlayersTabPartial(session, serverID).Render(r.Context(), w)
+}
+
 func (h *PartialHandler) LogPartial(w http.ResponseWriter, r *http.Request) {
 	if h.store == nil {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")

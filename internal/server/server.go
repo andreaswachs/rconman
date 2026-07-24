@@ -109,6 +109,8 @@ func NewServer(
 			r.Get("/server/{id}/run/{templateId}", partialHandler.CommandRunnerPartial)
 			r.Get("/server/{id}/status", partialHandler.StatusPartial)
 			r.Get("/server/{id}/players", partialHandler.PlayersPartial)
+			r.Get("/server/{id}/player-options", partialHandler.PlayerOptions)
+			r.Get("/server/{id}/players-tab", partialHandler.PlayersTabPartial)
 			r.Get("/server/{id}/power", partialHandler.PowerPartial)
 			r.Get("/server/{id}/manage", partialHandler.ManageCommandsPartial)
 			r.Get("/server/{id}/template", partialHandler.TemplateFormPartial)
