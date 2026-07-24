@@ -104,9 +104,9 @@ func NewServer(
 		partialHandler := handlers.NewPartialHandler(cfg, statusCache, st, rcons)
 		r.Route("/partials", func(r chi.Router) {
 			r.Get("/server/{id}", partialHandler.ServerPartial)
-			r.Get("/server/{id}/category/{catIndex}", partialHandler.CategoryPartial)
+			r.Get("/server/{id}/commands", partialHandler.CommandsPartial)
+			r.Get("/server/{id}/run/{templateId}", partialHandler.CommandRunnerPartial)
 			r.Get("/server/{id}/status", partialHandler.StatusPartial)
-			r.Get("/server/{id}/custom", partialHandler.CustomCommandPartial)
 			r.Get("/server/{id}/players", partialHandler.PlayersPartial)
 			r.Get("/server/{id}/power", partialHandler.PowerPartial)
 			r.Get("/server/{id}/manage", partialHandler.ManageCommandsPartial)

@@ -56,6 +56,27 @@ func serverPillClass(active bool) string {
 	return "btn btn-sm border border-base-300 hover:border-blue-400 transition-colors"
 }
 
+func tabClass(active bool) string {
+	if active {
+		return "btn btn-sm border border-blue-400 bg-blue-500 bg-opacity-20 text-blue-300"
+	}
+	return "btn btn-sm border border-base-300 hover:border-blue-400 transition-colors"
+}
+
+func templateIDStr(t *store.StoredTemplate) string {
+	if t != nil {
+		return fmt.Sprintf("%d", t.ID)
+	}
+	return ""
+}
+
+func templateParamsJSON(t *store.StoredTemplate) string {
+	if t != nil && t.Params != "" {
+		return t.Params
+	}
+	return "[]"
+}
+
 templ ServerPartial(session *auth.Session, server config.ServerDef, lists map[string][]string) {
 	<div id="server-content-inner">
 		<div class="flex items-center justify-between gap-4 mb-6">
@@ -88,38 +109,32 @@ templ ServerPartial(session *auth.Session, server config.ServerDef, lists map[st
 			</div>
 		</div>
 
-		<div class="flex flex-wrap gap-2 mb-6 border-b border-base-300 pb-3">
-			for i, category := range server.Commands {
-				<button
-					hx-get={ fmt.Sprintf("/partials/server/%s/category/%d", server.ID, i) }
-					hx-target="#commands"
-					hx-swap="innerHTML"
-					class={ categoryTabClass(i == 0) }
-				>
-					{ category.Category }
-				</button>
-			}
+		<div class="flex flex-wrap gap-2 mb-6 border-b border-base-300 pb-3" id="tab-strip">
+			<button
+				hx-get={ fmt.Sprintf("/partials/server/%s/commands", server.ID) }
+				hx-target="#tab-content"
+				hx-swap="innerHTML"
+				class={ tabClass(true) }
+				id="tab-commands"
+				onclick="document.querySelectorAll('#tab-strip button').forEach(b => b.className = 'btn btn-sm border border-base-300 hover:border-blue-400 transition-colors'); this.className = 'btn btn-sm border border-blue-400 bg-blue-500 bg-opacity-20 text-blue-300'"
+			>
+				Commands
+			</button>
 			if session.Role == "admin" {
 				<button
-					hx-get={ fmt.Sprintf("/partials/server/%s/custom", server.ID) }
-					hx-target="#commands"
-					hx-swap="innerHTML"
-					class="btn btn-sm border border-base-300 hover:border-blue-400 transition-colors"
-				>
-					Custom
-				</button>
-				<button
 					hx-get={ fmt.Sprintf("/partials/server/%s/manage", server.ID) }
-					hx-target="#commands"
+					hx-target="#tab-content"
 					hx-swap="innerHTML"
-					class="btn btn-sm border border-base-300 hover:border-blue-400 transition-colors"
+					class={ tabClass(false) }
+					id="tab-manage"
+					onclick="document.querySelectorAll('#tab-strip button').forEach(b => b.className = 'btn btn-sm border border-base-300 hover:border-blue-400 transition-colors'); this.className = 'btn btn-sm border border-blue-400 bg-blue-500 bg-opacity-20 text-blue-300'"
 				>
 					Manage
 				</button>
 			}
 		</div>
 
-		<div id="commands" hx-get={ fmt.Sprintf("/partials/server/%s/category/0", server.ID) } hx-trigger="load" hx-swap="innerHTML">
+		<div id="tab-content" hx-get={ fmt.Sprintf("/partials/server/%s/commands", server.ID) } hx-trigger="load" hx-swap="innerHTML">
 			<div class="flex items-center justify-center py-8">
 				<span class="loading loading-dots loading-sm text-blue-400"></span>
 			</div>
@@ -127,110 +142,80 @@ templ ServerPartial(session *auth.Session, server config.ServerDef, lists map[st
 	</div>
 }
 
-func categoryTabClass(active bool) string {
-	if active {
-		return "btn btn-sm border border-blue-400 bg-blue-500 bg-opacity-20 text-blue-300"
-	}
-	return "btn btn-sm border border-base-300 hover:border-blue-400 transition-colors"
-}
-
-func templateIDStr(t *store.StoredTemplate) string {
-	if t != nil {
-		return fmt.Sprintf("%d", t.ID)
-	}
-	return ""
-}
-
-templ CategoryPartial(session *auth.Session, server config.ServerDef, catIndex int, lists map[string][]string) {
-	<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-		for _, template := range server.Commands[catIndex].Templates {
-			<div class="card bg-base-200 bg-opacity-50 border border-base-300 hover:border-blue-400 transition-colors">
-				<div class="card-body">
-					<h4 class="card-title text-base text-white">{ template.Name }</h4>
-					<p class="text-sm text-gray-400">{ template.Description }</p>
-					if len(template.Params) > 0 {
-						<form
-							hx-post={ fmt.Sprintf("/api/commands/%s", server.ID) }
-							hx-target="find .command-response"
+templ CommandsPartial(session *auth.Session, serverID string, templates []store.StoredTemplate) {
+	<div class="flex gap-6">
+		<div class="w-64 flex-shrink-0">
+			if len(templates) == 0 {
+				<p class="text-gray-400 text-sm py-4">No commands yet. Add some in the Manage tab.</p>
+			} else {
+				<div class="space-y-1" id="command-list">
+					for _, t := range templates {
+						<button
+							hx-get={ fmt.Sprintf("/partials/server/%s/run/%d", serverID, t.ID) }
+							hx-target="#command-detail"
 							hx-swap="innerHTML"
-							hx-disabled-elt="find button"
-							class="space-y-3 my-4"
+							class="btn btn-sm btn-ghost w-full justify-start text-left border border-base-300 hover:border-blue-400 transition-colors"
+							onclick="document.querySelectorAll('#command-list button').forEach(b => b.className = 'btn btn-sm btn-ghost w-full justify-start text-left border border-base-300 hover:border-blue-400 transition-colors'); this.className = 'btn btn-sm w-full justify-start text-left border border-blue-400 bg-blue-500 bg-opacity-20 text-blue-300'"
 						>
-							<input type="hidden" name="command_template" value={ template.Command }/>
-							for _, param := range template.Params {
-								<div>
-									<label class="label">
-										<span class="label-text text-xs text-gray-300">{ param.Name }</span>
-									</label>
-									@paramInput(server.ID, param, lists)
-								</div>
-							}
-							<div class="card-actions justify-end mt-2">
-								<button type="submit" class="btn btn-primary btn-sm">
-									Execute
-								</button>
-							</div>
-							<div class="command-response mt-2"></div>
-						</form>
-					} else {
-						<form
-							hx-post={ fmt.Sprintf("/api/commands/%s", server.ID) }
-							hx-target="find .command-response"
-							hx-swap="innerHTML"
-							hx-disabled-elt="find button"
-							class="space-y-3 mt-4"
-						>
-							<input type="hidden" name="command_template" value={ template.Command }/>
-							<div class="card-actions justify-end">
-								<button type="submit" class="btn btn-primary btn-sm">
-									Execute
-								</button>
-							</div>
-							<div class="command-response mt-2"></div>
-						</form>
+							{ t.Name }
+						</button>
 					}
 				</div>
-			</div>
-		}
+			}
+		</div>
+		<div class="flex-1" id="command-detail">
+			if len(templates) > 0 {
+				<div class="flex items-center justify-center py-12 text-gray-400 text-sm">
+					Select a command from the left.
+				</div>
+			}
+		</div>
 	</div>
 }
 
-templ paramInput(serverID string, param config.TemplateParam, lists map[string][]string) {
-	if param.Type == "list" && len(param.Options) > 0 {
-		<select name={ param.Name } class="select select-bordered select-sm w-full text-sm">
-			for _, opt := range param.Options {
-				<option value={ opt }>{ opt }</option>
-			}
-		</select>
-	} else {
-		<input type="text" name={ param.Name } placeholder={ param.Name } class="input input-bordered input-sm w-full text-sm"/>
-	}
-}
-
-templ CustomCommandPartial(session *auth.Session, serverID string) {
+templ CommandRunnerPartial(session *auth.Session, serverID string, template *store.StoredTemplate, params []config.TemplateParam) {
 	<div class="card bg-base-200 bg-opacity-50 border border-base-300">
 		<div class="card-body">
-			<h4 class="card-title text-base text-white">Custom Command</h4>
-			<p class="text-sm text-gray-400">Execute any RCON command directly</p>
+			<h4 class="card-title text-base text-white">{ template.Name }</h4>
+			if template.Description != "" {
+				<p class="text-sm text-gray-400">{ template.Description }</p>
+			}
+			<p class="text-xs font-mono text-gray-500 mt-1">{ template.Command }</p>
+
 			<form
 				hx-post={ fmt.Sprintf("/api/commands/%s", serverID) }
 				hx-target="find .command-response"
 				hx-swap="innerHTML"
-			hx-disabled-elt="find button"
-			class="space-y-3 mt-4"
-		>
-			<div>
-					<label class="label">
-						<span class="label-text text-xs text-gray-300">Command</span>
-					</label>
-					<input type="text" name="command" placeholder="e.g. say Hello World" class="input input-bordered w-full text-sm"/>
-				</div>
+				hx-disabled-elt="find button"
+				class="space-y-3 mt-4"
+			>
+				<input type="hidden" name="command_template" value={ template.Command }/>
+				for _, param := range params {
+					@paramInput(serverID, param)
+				}
 				<div class="card-actions justify-end">
 					<button type="submit" class="btn btn-primary btn-sm">Execute</button>
 				</div>
 				<div class="command-response mt-2"></div>
 			</form>
 		</div>
+	</div>
+}
+
+templ paramInput(serverID string, param config.TemplateParam) {
+	<div>
+		<label class="label">
+			<span class="label-text text-xs text-gray-300">{ param.Name }</span>
+		</label>
+		if param.Type == "list" && len(param.Options) > 0 {
+			<select name={ param.Name } class="select select-bordered select-sm w-full text-sm">
+				for _, opt := range param.Options {
+					<option value={ opt }>{ opt }</option>
+				}
+			</select>
+		} else {
+			<input type="text" name={ param.Name } placeholder={ param.Name } class="input input-bordered input-sm w-full text-sm"/>
+		}
 	</div>
 }
 
@@ -331,7 +316,7 @@ templ PowerPartial(serverID string, desiredState string) {
 	}
 }
 
-templ ManageCommandsPartial(serverID string, categories []config.CommandCategory) {
+templ ManageCommandsPartial(session *auth.Session, serverID string, templates []store.StoredTemplate) {
 	<div>
 		<div class="flex items-center justify-between mb-4">
 			<h2 class="text-xl font-bold text-white">Manage Commands</h2>
@@ -345,39 +330,45 @@ templ ManageCommandsPartial(serverID string, categories []config.CommandCategory
 			</button>
 		</div>
 		<div id="template-form"></div>
-		if len(categories) == 0 {
+		if len(templates) == 0 {
 			<p class="text-gray-400 py-4">No command templates yet. Click "+ New Template" to create one.</p>
 		} else {
-			for _, cat := range categories {
-				<div class="mb-6">
-					<h3 class="text-base font-semibold text-blue-300 mb-3">{ cat.Category }</h3>
-					<div class="space-y-2">
-						for _, tmpl := range cat.Templates {
-							<div class="flex items-center justify-between bg-base-200 bg-opacity-50 rounded-lg px-4 py-2 border border-base-300">
-								<div>
-									<span class="text-sm font-medium text-white">{ tmpl.Name }</span>
-									<span class="text-xs text-gray-500 ml-2 font-mono">{ tmpl.Command }</span>
-								</div>
-								<div class="flex gap-1">
-									<button
-										hx-get={ fmt.Sprintf("/partials/server/%s", serverID) }
-										hx-target="#template-form"
-										hx-swap="innerHTML"
-										class="btn btn-ghost btn-xs"
-									></button>
-								</div>
-							</div>
-						}
+			<div class="space-y-1">
+				for _, t := range templates {
+					<div class="template-row flex items-center justify-between bg-base-200 bg-opacity-50 rounded-lg px-4 py-2 border border-base-300">
+						<div class="flex-1 min-w-0">
+							<span class="text-sm font-medium text-white">{ t.Name }</span>
+							<span class="text-xs text-gray-500 ml-2 font-mono truncate">{ t.Command }</span>
+						</div>
+						<div class="flex gap-1 flex-shrink-0">
+							<button
+								hx-get={ fmt.Sprintf("/partials/server/%s/template/%d", serverID, t.ID) }
+								hx-target="#template-form"
+								hx-swap="innerHTML"
+								class="btn btn-ghost btn-xs"
+							>
+								Edit
+							</button>
+							<button
+								hx-delete={ fmt.Sprintf("/api/templates/%d", t.ID) }
+								hx-confirm="Delete this template?"
+								hx-target="closest .template-row"
+								hx-swap="delete"
+								class="btn btn-ghost btn-xs text-red-400"
+							>
+								Delete
+							</button>
+						</div>
 					</div>
-				</div>
-			}
+				}
+			</div>
 		}
 	</div>
 }
 
 templ TemplateFormPartial(serverID string, template *store.StoredTemplate) {
 	<div class="card bg-base-200 bg-opacity-50 border border-blue-400 mb-6">
-		<div class="card-body" data-server-id={ serverID } data-template-id={ templateIDStr(template) }>
+		<div class="card-body" data-server-id={ serverID } data-template-id={ templateIDStr(template) } data-params={ templateParamsJSON(template) }>
 			<h3 class="card-title text-lg text-white">
 				if template != nil {
 					Edit Template
@@ -389,7 +380,7 @@ templ TemplateFormPartial(serverID string, template *store.StoredTemplate) {
 				<div class="grid grid-cols-2 gap-4">
 					<div>
 						<label class="label"><span class="label-text text-xs text-gray-300">Name</span></label>
-						<input type="text" name="name" placeholder="e.g. Give Item" class="input input-bordered input-sm w-full" 
+						<input type="text" name="name" placeholder="e.g. Give Item" class="input input-bordered input-sm w-full"
 							if template != nil { value={ template.Name } }
 						/>
 					</div>
@@ -427,7 +418,6 @@ templ TemplateFormPartial(serverID string, template *store.StoredTemplate) {
 		</div>
 	</div>
 	<script>
-		// Guard against redeclaration when HTMX re-injects this partial
 		if (!window._templateState) {
 			window._templateState = { counter: 0 };
 		}
@@ -436,80 +426,86 @@ templ TemplateFormPartial(serverID string, template *store.StoredTemplate) {
 		var templateID = card.dataset.templateId || null;
 		window._templateState.counter = 0;
 
-		function addParamRow(name, type, options) {
-		const row = document.createElement("div");
-		row.className = "flex items-center gap-2";
-		row.dataset.param = window._templateState.counter++;
-		row.innerHTML = `
-			<input type="text" placeholder="param name" class="input input-bordered input-xs w-28" data-field="name" value="${name || ''}"/>
-			<select class="select select-bordered select-xs" data-field="type" onchange="onTypeChange(this)">
-				<option value="text">free text</option>
-				<option value="list">from list</option>
-			</select>
-			<input type="text" placeholder="options (comma-separated)" class="input input-bordered input-xs flex-1 hidden" data-field="options"/>
-			<button type="button" class="btn btn-ghost btn-xs text-red-400" onclick="this.parentElement.remove()">✕</button>
-		`;
-		document.getElementById("param-list").appendChild(row);
-
-		const typeSel = row.querySelector('[data-field="type"]');
-		if (type) {
-			typeSel.value = type;
-			typeSel.dispatchEvent(new Event("change"));
-		}
-		const optsField = row.querySelector('[data-field="options"]');
-		if (options) {
-			optsField.value = options;
-		}
-	}
-
-	function onTypeChange(sel) {
-		const row = sel.parentElement;
-		const optsField = row.querySelector('[data-field="options"]');
-		optsField.classList.add("hidden");
-		if (sel.value === "list") {
-			optsField.classList.remove("hidden");
-		}
-	}
-
-	function collectParams() {
-		const params = [];
-		document.querySelectorAll("#param-list > div").forEach(row => {
-			const name = row.querySelector('[data-field="name"]').value;
-			if (!name) return;
-			const type = row.querySelector('[data-field="type"]').value;
-			const param = { name, type };
-			if (type === "list") {
-				const opts = row.querySelector('[data-field="options"]').value;
-				param.options = opts.split(",").map(s => s.trim()).filter(Boolean);
-			}
-			params.push(param);
+		// Pre-fill existing params if editing
+		var existingParams = JSON.parse(card.dataset.params || "[]");
+		existingParams.forEach(function(p) {
+			var opts = (p.options || []).join(",");
+			addParamRow(p.name, p.type, opts);
 		});
-		return params;
-	}
 
-	function saveTemplate() {
-		const form = document.getElementById("template-form-inner");
-		const data = {
-			name: form.querySelector('[name="name"]').value,
-			category: form.querySelector('[name="category"]').value,
-			description: form.querySelector('[name="description"]').value,
-			command: form.querySelector('[name="command"]').value,
-			params: collectParams(),
-		};
-		const url = templateID
-			? "/api/templates/" + templateID
-			: "/api/templates/" + serverID;
-		const method = templateID ? "PUT" : "POST";
-		fetch(url, {
-			method,
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(data),
-		}).then(r => {
-			if (!r.ok) throw new Error("Save failed");
-			document.getElementById("template-form").innerHTML = "";
-			// Reload the manage view
-			htmx.ajax("GET", "/partials/server/" + serverID + "/manage", { target: "#commands", swap: "innerHTML" });
-		}).catch(err => alert(err.message));
-	}
+		function addParamRow(name, type, options) {
+			const row = document.createElement("div");
+			row.className = "flex items-center gap-2";
+			row.dataset.param = window._templateState.counter++;
+			row.innerHTML = `
+				<input type="text" placeholder="param name" class="input input-bordered input-xs w-28" data-field="name" value="${name || ''}"/>
+				<select class="select select-bordered select-xs" data-field="type" onchange="onTypeChange(this)">
+					<option value="text">free text</option>
+					<option value="list">from list</option>
+				</select>
+				<input type="text" placeholder="options (comma-separated)" class="input input-bordered input-xs flex-1 hidden" data-field="options"/>
+				<button type="button" class="btn btn-ghost btn-xs text-red-400" onclick="this.parentElement.remove()">✕</button>
+			`;
+			document.getElementById("param-list").appendChild(row);
+
+			const typeSel = row.querySelector('[data-field="type"]');
+			if (type) {
+				typeSel.value = type;
+				typeSel.dispatchEvent(new Event("change"));
+			}
+			const optsField = row.querySelector('[data-field="options"]');
+			if (options) {
+				optsField.value = options;
+			}
+		}
+
+		function onTypeChange(sel) {
+			const row = sel.parentElement;
+			const optsField = row.querySelector('[data-field="options"]');
+			optsField.classList.add("hidden");
+			if (sel.value === "list") {
+				optsField.classList.remove("hidden");
+			}
+		}
+
+		function collectParams() {
+			const params = [];
+			document.querySelectorAll("#param-list > div").forEach(row => {
+				const name = row.querySelector('[data-field="name"]').value;
+				if (!name) return;
+				const type = row.querySelector('[data-field="type"]').value;
+				const param = { name, type };
+				if (type === "list") {
+					const opts = row.querySelector('[data-field="options"]').value;
+					param.options = opts.split(",").map(s => s.trim()).filter(Boolean);
+				}
+				params.push(param);
+			});
+			return params;
+		}
+
+		function saveTemplate() {
+			const form = document.getElementById("template-form-inner");
+			const data = {
+				name: form.querySelector('[name="name"]').value,
+				category: form.querySelector('[name="category"]').value,
+				description: form.querySelector('[name="description"]').value,
+				command: form.querySelector('[name="command"]').value,
+				params: collectParams(),
+			};
+			const url = templateID
+				? "/api/templates/" + templateID
+				: "/api/templates/" + serverID;
+			const method = templateID ? "PUT" : "POST";
+			fetch(url, {
+				method,
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(data),
+			}).then(r => {
+				if (!r.ok) throw new Error("Save failed");
+				document.getElementById("template-form").innerHTML = "";
+				htmx.ajax("GET", "/partials/server/" + serverID + "/manage", { target: "#tab-content", swap: "innerHTML" });
+			}).catch(err => alert(err.message));
+		}
 	</script>
 }

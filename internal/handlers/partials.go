@@ -40,40 +40,6 @@ func (h *PartialHandler) findServer(serverID string) *config.ServerDef {
 	return nil
 }
 
-// storedCategories loads templates from the store and groups them by category.
-func (h *PartialHandler) storedCategories(serverID string) []config.CommandCategory {
-	if h.store == nil {
-		return nil
-	}
-	templates, err := h.store.GetTemplates(context.Background(), serverID)
-	if err != nil {
-		return nil
-	}
-
-	catMap := map[string]*config.CommandCategory{}
-	var categories []config.CommandCategory
-	for _, t := range templates {
-		var params []config.TemplateParam
-		json.Unmarshal([]byte(t.Params), &params)
-
-		tmpl := config.CommandTemplate{
-			Name:        t.Name,
-			Description: t.Description,
-			Command:     t.Command,
-			Params:      params,
-		}
-
-		cat, ok := catMap[t.Category]
-		if !ok {
-			categories = append(categories, config.CommandCategory{Category: t.Category})
-			cat = &categories[len(categories)-1]
-			catMap[t.Category] = cat
-		}
-		cat.Templates = append(cat.Templates, tmpl)
-	}
-	return categories
-}
-
 func (h *PartialHandler) ServerPartial(w http.ResponseWriter, r *http.Request) {
 	session, ok := auth.GetSessionFromContext(r)
 	if !ok {
@@ -88,14 +54,11 @@ func (h *PartialHandler) ServerPartial(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Override commands with stored templates
-	server.Commands = h.storedCategories(serverID)
-
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	views.ServerPartial(session, *server, h.config.Lists).Render(r.Context(), w)
 }
 
-func (h *PartialHandler) CategoryPartial(w http.ResponseWriter, r *http.Request) {
+func (h *PartialHandler) CommandsPartial(w http.ResponseWriter, r *http.Request) {
 	session, ok := auth.GetSessionFromContext(r)
 	if !ok {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
@@ -103,24 +66,42 @@ func (h *PartialHandler) CategoryPartial(w http.ResponseWriter, r *http.Request)
 	}
 
 	serverID := chi.URLParam(r, "id")
-	server := h.findServer(serverID)
-	if server == nil {
-		http.Error(w, "server not found", http.StatusNotFound)
-		return
-	}
-
-	// Override commands with stored templates
-	server.Commands = h.storedCategories(serverID)
-
-	catIndex, err := strconv.Atoi(chi.URLParam(r, "catIndex"))
-	if err != nil || catIndex < 0 || catIndex >= len(server.Commands) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Write([]byte(`<p class="text-gray-400 py-4">No commands in this category.</p>`))
-		return
-	}
+	templates, _ := h.store.GetTemplates(r.Context(), serverID)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	views.CategoryPartial(session, *server, catIndex, h.config.Lists).Render(r.Context(), w)
+	views.CommandsPartial(session, serverID, templates).Render(r.Context(), w)
+}
+
+func (h *PartialHandler) CommandRunnerPartial(w http.ResponseWriter, r *http.Request) {
+	session, ok := auth.GetSessionFromContext(r)
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	serverID := chi.URLParam(r, "id")
+	templateIDStr := chi.URLParam(r, "templateId")
+	templateID, _ := strconv.ParseInt(templateIDStr, 10, 64)
+
+	templates, _ := h.store.GetTemplates(r.Context(), serverID)
+	var tmpl *store.StoredTemplate
+	for i := range templates {
+		if templates[i].ID == templateID {
+			tmpl = &templates[i]
+			break
+		}
+	}
+	if tmpl == nil {
+		http.Error(w, "template not found", http.StatusNotFound)
+		return
+	}
+
+	// Parse params from template JSON
+	var params []config.TemplateParam
+	json.Unmarshal([]byte(tmpl.Params), &params)
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	views.CommandRunnerPartial(session, serverID, tmpl, params).Render(r.Context(), w)
 }
 
 func (h *PartialHandler) StatusPartial(w http.ResponseWriter, r *http.Request) {
@@ -128,23 +109,6 @@ func (h *PartialHandler) StatusPartial(w http.ResponseWriter, r *http.Request) {
 	status := h.cache.Get(serverID)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	views.StatusPartial(status.Online, status.PlayerCount, status.Error).Render(r.Context(), w)
-}
-
-func (h *PartialHandler) CustomCommandPartial(w http.ResponseWriter, r *http.Request) {
-	session, ok := auth.GetSessionFromContext(r)
-	if !ok {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	if session.Role != "admin" {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-
-	serverID := chi.URLParam(r, "id")
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	views.CustomCommandPartial(session, serverID).Render(r.Context(), w)
 }
 
 func (h *PartialHandler) PlayersPartial(w http.ResponseWriter, r *http.Request) {
@@ -160,7 +124,6 @@ func (h *PartialHandler) PlayersPartial(w http.ResponseWriter, r *http.Request) 
 
 	players, err := client.PlayerList(ctx)
 	if err != nil {
-		// Return empty list on error — the dropdown just won't have options
 		players = []string{}
 	}
 
@@ -214,10 +177,10 @@ func (h *PartialHandler) ManageCommandsPartial(w http.ResponseWriter, r *http.Re
 	}
 
 	serverID := chi.URLParam(r, "id")
-	categories := h.storedCategories(serverID)
+	templates, _ := h.store.GetTemplates(r.Context(), serverID)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	views.ManageCommandsPartial(serverID, categories).Render(r.Context(), w)
+	views.ManageCommandsPartial(session, serverID, templates).Render(r.Context(), w)
 }
 
 func (h *PartialHandler) TemplateFormPartial(w http.ResponseWriter, r *http.Request) {
