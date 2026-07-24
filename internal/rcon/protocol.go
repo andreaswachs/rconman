@@ -3,6 +3,7 @@ package rcon
 import (
 	"encoding/binary"
 	"io"
+	"strings"
 )
 
 const (
@@ -82,11 +83,12 @@ func DecodePacket(r io.Reader) (*Packet, error) {
 	}
 	packetType := int32(binary.LittleEndian.Uint32(body[4:8]))
 
-	// Parse payload (rest of body minus null terminator)
+	// Parse payload (rest of body minus null terminator(s))
+	// RCON spec: payload is followed by two null bytes (string terminator + padding).
+	// Some servers send only one; TrimRight handles both.
 	payload := ""
 	if len(body) > 9 {
-		// Remove the null terminator at the end
-		payload = string(body[8 : len(body)-1])
+		payload = strings.TrimRight(string(body[8:len(body)-1]), "\x00")
 	}
 
 	return &Packet{

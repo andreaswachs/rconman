@@ -97,7 +97,7 @@ func readFull(r interface{ Read([]byte) (int, error) }, buf []byte) (int, error)
 
 func writeMockPacket(w net.Conn, id int32, pktType int32, payload string) {
 	payloadBytes := []byte(payload)
-	bodySize := 4 + 4 + len(payloadBytes) + 1
+	bodySize := 4 + 4 + len(payloadBytes) + 2 // +2 null terminators per RCON spec
 	buf := make([]byte, 4+bodySize)
 	buf[0] = byte(bodySize)
 	buf[1] = byte(bodySize >> 8)
@@ -113,6 +113,7 @@ func writeMockPacket(w net.Conn, id int32, pktType int32, payload string) {
 	buf[11] = byte(uint32(pktType) >> 24)
 	copy(buf[12:12+len(payloadBytes)], payloadBytes)
 	buf[12+len(payloadBytes)] = 0
+	buf[12+len(payloadBytes)+1] = 0
 	w.Write(buf)
 }
 
