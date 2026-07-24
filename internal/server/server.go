@@ -103,6 +103,7 @@ func NewServer(
 		// HTMX partials
 		partialHandler := handlers.NewPartialHandler(cfg, statusCache, st, rcons)
 		r.Route("/partials", func(r chi.Router) {
+			r.Get("/selector", partialHandler.ServerSelectorPartial)
 			r.Get("/server/{id}", partialHandler.ServerPartial)
 			r.Get("/server/{id}/commands", partialHandler.CommandsPartial)
 			r.Get("/server/{id}/run/{templateId}", partialHandler.CommandRunnerPartial)

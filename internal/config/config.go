@@ -113,9 +113,9 @@ type CommandTemplate struct {
 // TemplateParam represents a parameter in a command template.
 // Type is either "text" (free-form input) or "list" (predefined options).
 type TemplateParam struct {
-	Name    string   `yaml:"name"`
-	Type    string   `yaml:"type"`
-	Options []string `yaml:"options"`
+	Name    string   `yaml:"name" json:"name"`
+	Type    string   `yaml:"type" json:"type"`
+	Options []string `yaml:"options" json:"options"`
 }
 
 // LoadConfig loads and parses the YAML configuration file, then validates it

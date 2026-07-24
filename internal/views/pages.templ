@@ -17,18 +17,16 @@ templ HomePage(session *auth.Session, servers []config.ServerDef) {
 			</div>
 		} else {
 			<div>
-				<div class="flex flex-wrap gap-2 mb-6" id="server-pills">
-					for i, server := range servers {
-						<button
-							hx-get={ fmt.Sprintf("/partials/server/%s", server.ID) }
-							hx-target="#server-content"
-							hx-swap="innerHTML"
-							class={ serverPillClass(i == 0) }
-							onclick="document.querySelectorAll('#server-pills button').forEach(b => b.className = 'btn btn-sm border border-base-300 hover:border-blue-400 transition-colors'); this.className = 'btn btn-sm border border-blue-400 bg-blue-500 bg-opacity-20 text-blue-300'"
-						>
-							{ server.Name }
-						</button>
-					}
+				<script>window.selectedServer = { fmt.Sprintf("%q", servers[0].ID) };</script>
+				<div id="server-selector"
+					hx-get="/partials/selector"
+					hx-trigger="load, every 10s"
+					hx-vals='js:{selected: window.selectedServer}'
+					hx-swap="innerHTML"
+				>
+					<div class="flex items-center gap-2 text-gray-400 text-sm py-2">
+						<span class="loading loading-dots loading-sm"></span>
+					</div>
 				</div>
 				<div id="server-content" hx-get={ fmt.Sprintf("/partials/server/%s", servers[0].ID) } hx-trigger="load" hx-swap="innerHTML">
 					<div class="flex items-center justify-center py-12">
@@ -49,11 +47,49 @@ templ HomePage(session *auth.Session, servers []config.ServerDef) {
 	}
 }
 
-func serverPillClass(active bool) string {
-	if active {
-		return "btn btn-sm border border-blue-400 bg-blue-500 bg-opacity-20 text-blue-300"
+func dotClass(online bool) string {
+	if online {
+		return "bg-green-400"
 	}
-	return "btn btn-sm border border-base-300 hover:border-blue-400 transition-colors"
+	return "bg-red-400"
+}
+
+func serverName(servers []config.ServerDef, id string) string {
+	for _, s := range servers {
+		if s.ID == id {
+			return s.Name
+		}
+	}
+	return ""
+}
+
+templ ServerSelectorPartial(selectedServerID string, servers []config.ServerDef, statuses map[string]bool) {
+	<div class="flex items-center gap-4 mb-6">
+		<div class="dropdown">
+			<div tabindex="0" role="button" class="btn btn-sm border border-base-300 gap-2 w-56 justify-start">
+				<span class={ fmt.Sprintf("w-2 h-2 rounded-full %s", dotClass(statuses[selectedServerID])) }></span>
+				<span>{ serverName(servers, selectedServerID) }</span>
+				<svg class="w-3 h-3 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+			</div>
+			<ul class="dropdown-content menu bg-base-200 rounded-box z-10 w-56 p-2 shadow-lg border border-base-300">
+				for _, server := range servers {
+					<li>
+						<button
+							data-server-id={ server.ID }
+							hx-get={ fmt.Sprintf("/partials/server/%s", server.ID) }
+							hx-target="#server-content"
+							hx-swap="innerHTML"
+							onclick="window.selectedServer=this.dataset.serverId; htmx.ajax('GET', '/partials/selector?selected=' + this.dataset.serverId, { target: '#server-selector', swap: 'innerHTML' })"
+							class="flex items-center gap-2 w-full"
+						>
+							<span class={ fmt.Sprintf("w-2 h-2 rounded-full %s", dotClass(statuses[server.ID])) }></span>
+							<span>{ server.Name }</span>
+						</button>
+					</li>
+				}
+			</ul>
+		</div>
+	</div>
 }
 
 func tabClass(active bool) string {
@@ -207,7 +243,15 @@ templ paramInput(serverID string, param config.TemplateParam) {
 		<label class="label">
 			<span class="label-text text-xs text-gray-300">{ param.Name }</span>
 		</label>
-		if param.Type == "list" && len(param.Options) > 0 {
+		if param.Type == "player" {
+			<select name={ param.Name } class="select select-bordered select-sm w-full text-sm"
+				hx-get={ fmt.Sprintf("/partials/server/%s/players", serverID) }
+				hx-trigger="load, every 10s"
+				hx-swap="innerHTML"
+			>
+				<option value="">Loading players...</option>
+			</select>
+		} else if param.Type == "list" && len(param.Options) > 0 {
 			<select name={ param.Name } class="select select-bordered select-sm w-full text-sm">
 				for _, opt := range param.Options {
 					<option value={ opt }>{ opt }</option>
@@ -442,6 +486,7 @@ templ TemplateFormPartial(serverID string, template *store.StoredTemplate) {
 				<select class="select select-bordered select-xs" data-field="type" onchange="onTypeChange(this)">
 					<option value="text">free text</option>
 					<option value="list">from list</option>
+					<option value="player">online player</option>
 				</select>
 				<input type="text" placeholder="options (comma-separated)" class="input input-bordered input-xs flex-1 hidden" data-field="options"/>
 				<button type="button" class="btn btn-ghost btn-xs text-red-400" onclick="this.parentElement.remove()">✕</button>

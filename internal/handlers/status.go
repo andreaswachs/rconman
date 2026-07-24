@@ -16,6 +16,7 @@ import (
 type ServerStatus struct {
 	Online      bool      `json:"online"`
 	PlayerCount int       `json:"player_count"`
+	Players     []string  `json:"players"`
 	LastChecked time.Time `json:"last_checked"`
 	Error       string    `json:"error,omitempty"`
 }
@@ -77,6 +78,7 @@ func (c *StatusCache) pollServer(id string, client rcon.Client, interval time.Du
 		} else {
 			status.Online = true
 			status.PlayerCount = len(players)
+			status.Players = players
 		}
 		c.Set(id, status)
 	}

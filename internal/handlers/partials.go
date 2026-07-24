@@ -1,11 +1,9 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/your-org/rconman/internal/auth"
@@ -56,6 +54,27 @@ func (h *PartialHandler) ServerPartial(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	views.ServerPartial(session, *server, h.config.Lists).Render(r.Context(), w)
+}
+
+func (h *PartialHandler) ServerSelectorPartial(w http.ResponseWriter, r *http.Request) {
+	if _, ok := auth.GetSessionFromContext(r); !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	servers := h.config.Minecraft.Servers
+	selected := r.URL.Query().Get("selected")
+	if selected == "" && len(servers) > 0 {
+		selected = servers[0].ID
+	}
+
+	statuses := make(map[string]bool, len(servers))
+	for _, s := range servers {
+		statuses[s.ID] = h.cache.Get(s.ID).Online
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	views.ServerSelectorPartial(selected, servers, statuses).Render(r.Context(), w)
 }
 
 func (h *PartialHandler) CommandsPartial(w http.ResponseWriter, r *http.Request) {
@@ -113,17 +132,9 @@ func (h *PartialHandler) StatusPartial(w http.ResponseWriter, r *http.Request) {
 
 func (h *PartialHandler) PlayersPartial(w http.ResponseWriter, r *http.Request) {
 	serverID := chi.URLParam(r, "id")
-	client, ok := h.rcons[serverID]
-	if !ok {
-		http.Error(w, "unknown server", http.StatusNotFound)
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
-	defer cancel()
-
-	players, err := client.PlayerList(ctx)
-	if err != nil {
+	status := h.cache.Get(serverID)
+	players := status.Players
+	if players == nil {
 		players = []string{}
 	}
 
