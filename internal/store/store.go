@@ -27,6 +27,17 @@ type StoredTemplate struct {
 	Params      string // JSON array of config.TemplateParam
 }
 
+// ServerSettings holds per-server jail/unjail coordinates.
+type ServerSettings struct {
+	ServerID string
+	JailX   string
+	JailY   string
+	JailZ   string
+	UnjailX string
+	UnjailY string
+	UnjailZ string
+}
+
 // Store defines the interface for persistence.
 type Store interface {
 	// RecordCommand stores a command execution log.
@@ -58,4 +69,10 @@ type Store interface {
 
 	// DeleteTemplate removes a command template by ID.
 	DeleteTemplate(ctx context.Context, id int64) error
+
+	// GetServerSettings returns jail/unjail coordinates for a server.
+	GetServerSettings(ctx context.Context, serverID string) (ServerSettings, error)
+
+	// SaveServerSettings saves jail/unjail coordinates for a server.
+	SaveServerSettings(ctx context.Context, s ServerSettings) error
 }

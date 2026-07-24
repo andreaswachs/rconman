@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"sort"
 	"strconv"
@@ -182,9 +183,60 @@ func (h *PartialHandler) PlayersTabPartial(w http.ResponseWriter, r *http.Reques
 	}
 
 	serverID := chi.URLParam(r, "id")
+	settings, _ := h.store.GetServerSettings(r.Context(), serverID)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	views.PlayersTabPartial(session, serverID).Render(r.Context(), w)
+	views.PlayersTabPartial(session, serverID, settings).Render(r.Context(), w)
+}
+
+func (h *PartialHandler) SettingsPartial(w http.ResponseWriter, r *http.Request) {
+	session, ok := auth.GetSessionFromContext(r)
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if session.Role != "admin" {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+
+	serverID := chi.URLParam(r, "id")
+	settings, _ := h.store.GetServerSettings(r.Context(), serverID)
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	views.SettingsPartial(serverID, settings).Render(r.Context(), w)
+}
+
+func (h *PartialHandler) SaveSettings(w http.ResponseWriter, r *http.Request) {
+	session, ok := auth.GetSessionFromContext(r)
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if session.Role != "admin" {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+
+	serverID := chi.URLParam(r, "id")
+	r.ParseForm()
+	settings := store.ServerSettings{
+		ServerID: serverID,
+		JailX:    r.FormValue("jail_x"),
+		JailY:    r.FormValue("jail_y"),
+		JailZ:    r.FormValue("jail_z"),
+		UnjailX:  r.FormValue("unjail_x"),
+		UnjailY:  r.FormValue("unjail_y"),
+		UnjailZ:  r.FormValue("unjail_z"),
+	}
+	if err := h.store.SaveServerSettings(r.Context(), settings); err != nil {
+		slog.Error("failed to save settings", "server", serverID, "err", err)
+		http.Error(w, "failed to save settings", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	views.SettingsPartial(serverID, settings).Render(r.Context(), w)
 }
 
 func (h *PartialHandler) LogPartial(w http.ResponseWriter, r *http.Request) {

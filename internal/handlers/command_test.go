@@ -202,3 +202,11 @@ func (ms *MockStore) UpdateTemplate(ctx context.Context, t store.StoredTemplate)
 func (ms *MockStore) DeleteTemplate(ctx context.Context, id int64) error {
 	return nil
 }
+
+func (ms *MockStore) GetServerSettings(ctx context.Context, serverID string) (store.ServerSettings, error) {
+	return store.ServerSettings{ServerID: serverID}, nil
+}
+
+func (ms *MockStore) SaveServerSettings(ctx context.Context, s store.ServerSettings) error {
+	return nil
+}

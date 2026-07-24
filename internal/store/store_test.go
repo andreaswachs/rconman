@@ -11,6 +11,7 @@ type MockStore struct {
 	logs         []CommandLog
 	desiredState map[string]int
 	templates    []StoredTemplate
+	settings     map[string]ServerSettings
 }
 
 // NewMockStore creates a new MockStore instance.
@@ -19,6 +20,7 @@ func NewMockStore() *MockStore {
 		logs:         make([]CommandLog, 0),
 		desiredState: make(map[string]int),
 		templates:    make([]StoredTemplate, 0),
+		settings:     make(map[string]ServerSettings),
 	}
 }
 
@@ -119,6 +121,20 @@ func (m *MockStore) DeleteTemplate(ctx context.Context, id int64) error {
 		}
 	}
 	m.templates = filtered
+	return nil
+}
+
+// GetServerSettings returns jail/unjail coordinates for a server (defaults if unset).
+func (m *MockStore) GetServerSettings(ctx context.Context, serverID string) (ServerSettings, error) {
+	if s, ok := m.settings[serverID]; ok {
+		return s, nil
+	}
+	return ServerSettings{ServerID: serverID}, nil
+}
+
+// SaveServerSettings saves jail/unjail coordinates for a server.
+func (m *MockStore) SaveServerSettings(ctx context.Context, s ServerSettings) error {
+	m.settings[s.ServerID] = s
 	return nil
 }
 

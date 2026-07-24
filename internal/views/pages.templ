@@ -167,6 +167,16 @@ templ ServerPartial(session *auth.Session, server config.ServerDef, lists map[st
 			</button>
 			if session.Role == "admin" {
 				<button
+					hx-get={ fmt.Sprintf("/partials/server/%s/settings", server.ID) }
+					hx-target="#tab-content"
+					hx-swap="innerHTML"
+					class={ tabClass(false) }
+					id="tab-settings"
+					onclick="document.querySelectorAll('#tab-strip button').forEach(b => b.className = 'btn btn-sm border border-base-300 hover:border-blue-400 transition-colors'); this.className = 'btn btn-sm border border-blue-400 bg-blue-500 bg-opacity-20 text-blue-300'"
+				>
+					Settings
+				</button>
+				<button
 					hx-get={ fmt.Sprintf("/partials/server/%s/manage", server.ID) }
 					hx-target="#tab-content"
 					hx-swap="innerHTML"
@@ -369,7 +379,7 @@ templ playerAction(serverID string, command string, label string, btnClass strin
 	</form>
 }
 
-templ PlayersTabPartial(session *auth.Session, serverID string) {
+templ PlayersTabPartial(session *auth.Session, serverID string, settings store.ServerSettings) {
 	<div>
 		<div class="mb-4">
 			<label class="label">
@@ -500,6 +510,17 @@ templ PlayersTabPartial(session *auth.Session, serverID string) {
 				syncTarget();
 			</script>
 			}
+
+			<details class="rounded-lg border border-base-300 bg-base-200 bg-opacity-50">
+				<summary class="cursor-pointer px-4 py-2 text-sm font-semibold text-gray-300 select-none">Jail</summary>
+				<div class="px-4 pb-4 pt-2">
+					<div class="grid grid-cols-2 gap-2">
+						@playerAction(serverID, fmt.Sprintf("tp {{player}} %s %s %s", settings.JailX, settings.JailY, settings.JailZ), "Jail", "btn-error")
+						@playerAction(serverID, fmt.Sprintf("tp {{player}} %s %s %s", settings.UnjailX, settings.UnjailY, settings.UnjailZ), "Unjail", "btn-ghost")
+					</div>
+					<p class="text-xs text-gray-500 mt-2">Configure coordinates in the Settings tab.</p>
+				</div>
+			</details>
 		</div>
 	</div>
 }
@@ -532,6 +553,62 @@ templ PowerPartial(serverID string, desiredState string) {
 			</button>
 		</div>
 	}
+}
+
+templ SettingsPartial(serverID string, settings store.ServerSettings) {
+	<div class="max-w-2xl">
+		<h2 class="text-xl font-bold text-white mb-4">Server Settings</h2>
+		<form
+			hx-post={ fmt.Sprintf("/partials/server/%s/settings", serverID) }
+			hx-target="closest div"
+			hx-swap="outerHTML"
+			class="space-y-6"
+		>
+			<div class="card bg-base-200 bg-opacity-50 border border-base-300">
+				<div class="card-body">
+					<h3 class="card-title text-base text-white">Jail Coordinates</h3>
+					<p class="text-xs text-gray-400">Where players are teleported when jailed.</p>
+					<div class="grid grid-cols-3 gap-3 mt-2">
+						<div>
+							<label class="label"><span class="label-text text-xs text-gray-300">X</span></label>
+							<input type="text" name="jail_x" value={ settings.JailX } placeholder="0" class="input input-bordered input-sm w-full font-mono"/>
+						</div>
+						<div>
+							<label class="label"><span class="label-text text-xs text-gray-300">Y</span></label>
+							<input type="text" name="jail_y" value={ settings.JailY } placeholder="0" class="input input-bordered input-sm w-full font-mono"/>
+						</div>
+						<div>
+							<label class="label"><span class="label-text text-xs text-gray-300">Z</span></label>
+							<input type="text" name="jail_z" value={ settings.JailZ } placeholder="0" class="input input-bordered input-sm w-full font-mono"/>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="card bg-base-200 bg-opacity-50 border border-base-300">
+				<div class="card-body">
+					<h3 class="card-title text-base text-white">Unjail Coordinates</h3>
+					<p class="text-xs text-gray-400">Where players are teleported when unjailed (e.g. spawn).</p>
+					<div class="grid grid-cols-3 gap-3 mt-2">
+						<div>
+							<label class="label"><span class="label-text text-xs text-gray-300">X</span></label>
+							<input type="text" name="unjail_x" value={ settings.UnjailX } placeholder="0" class="input input-bordered input-sm w-full font-mono"/>
+						</div>
+						<div>
+							<label class="label"><span class="label-text text-xs text-gray-300">Y</span></label>
+							<input type="text" name="unjail_y" value={ settings.UnjailY } placeholder="0" class="input input-bordered input-sm w-full font-mono"/>
+						</div>
+						<div>
+							<label class="label"><span class="label-text text-xs text-gray-300">Z</span></label>
+							<input type="text" name="unjail_z" value={ settings.UnjailZ } placeholder="0" class="input input-bordered input-sm w-full font-mono"/>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<button type="submit" class="btn btn-primary btn-sm">Save Settings</button>
+		</form>
+	</div>
 }
 
 templ ManageCommandsPartial(session *auth.Session, serverID string, templates []store.StoredTemplate) {

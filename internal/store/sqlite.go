@@ -61,6 +61,17 @@ func NewSQLiteStore(dbPath string) (*SQLiteStore, error) {
 	);
 
 	CREATE INDEX IF NOT EXISTS idx_command_templates_server_id ON command_templates(server_id);
+
+	CREATE TABLE IF NOT EXISTS server_settings (
+		server_id TEXT PRIMARY KEY,
+		jail_x TEXT NOT NULL DEFAULT '0',
+		jail_y TEXT NOT NULL DEFAULT '0',
+		jail_z TEXT NOT NULL DEFAULT '0',
+		unjail_x TEXT NOT NULL DEFAULT '0',
+		unjail_y TEXT NOT NULL DEFAULT '0',
+		unjail_z TEXT NOT NULL DEFAULT '0',
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
 	`
 
 	if _, err := db.Exec(schema); err != nil {
@@ -208,5 +219,32 @@ func (s *SQLiteStore) UpdateTemplate(ctx context.Context, t StoredTemplate) erro
 // DeleteTemplate removes a command template by ID.
 func (s *SQLiteStore) DeleteTemplate(ctx context.Context, id int64) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM command_templates WHERE id=?`, id)
+	return err
+}
+
+// GetServerSettings returns jail/unjail coordinates for a server (defaults if unset).
+func (s *SQLiteStore) GetServerSettings(ctx context.Context, serverID string) (ServerSettings, error) {
+	var ss ServerSettings
+	ss.ServerID = serverID
+	err := s.db.QueryRowContext(ctx,
+		`SELECT jail_x, jail_y, jail_z, unjail_x, unjail_y, unjail_z
+		 FROM server_settings WHERE server_id = ?`, serverID,
+	).Scan(&ss.JailX, &ss.JailY, &ss.JailZ, &ss.UnjailX, &ss.UnjailY, &ss.UnjailZ)
+	if err == sql.ErrNoRows {
+		return ServerSettings{ServerID: serverID}, nil
+	}
+	return ss, err
+}
+
+// SaveServerSettings saves jail/unjail coordinates for a server.
+func (s *SQLiteStore) SaveServerSettings(ctx context.Context, ss ServerSettings) error {
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO server_settings (server_id, jail_x, jail_y, jail_z, unjail_x, unjail_y, unjail_z, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+		 ON CONFLICT(server_id) DO UPDATE SET
+		   jail_x=excluded.jail_x, jail_y=excluded.jail_y, jail_z=excluded.jail_z,
+		   unjail_x=excluded.unjail_x, unjail_y=excluded.unjail_y, unjail_z=excluded.unjail_z,
+		   updated_at=datetime('now')`,
+		ss.ServerID, ss.JailX, ss.JailY, ss.JailZ, ss.UnjailX, ss.UnjailY, ss.UnjailZ)
 	return err
 }
