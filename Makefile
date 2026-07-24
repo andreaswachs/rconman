@@ -25,7 +25,8 @@ dev-watch: generate
 
 # Build targets
 build: generate build-css
-	CGO_ENABLED=0 go build -o rconman ./cmd/rconman
+	@VERSION=$$(grep '^tag:' image.yaml | awk -F'"' '{print $$2}'); \
+	CGO_ENABLED=0 go build -ldflags "-X github.com/your-org/rconman/internal/version.Version=$$VERSION" -o rconman ./cmd/rconman
 
 build-css:
 	@cd web && npm run build

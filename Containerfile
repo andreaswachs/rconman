@@ -16,7 +16,10 @@ RUN go install github.com/a-h/templ/cmd/templ@v0.3.1001
 COPY . .
 COPY --from=css /web/static/app.css web/static/app.css
 RUN go generate ./...
-RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o rconman ./cmd/rconman
+RUN VERSION=$(grep '^tag:' image.yaml | awk -F'"' '{print $$2}') && \
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
+    -ldflags "-X github.com/your-org/rconman/internal/version.Version=$$VERSION" \
+    -o rconman ./cmd/rconman
 
 FROM gcr.io/distroless/static-debian13
 COPY --from=builder /app/rconman /rconman
