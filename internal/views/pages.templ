@@ -178,8 +178,8 @@ templ ServerPartial(session *auth.Session, server config.ServerDef, lists map[st
 }
 
 templ CommandsPartial(session *auth.Session, serverID string, templates []store.StoredTemplate) {
-	<div class="flex gap-6">
-		<div class="w-64 flex-shrink-0">
+	<div class="flex flex-col md:flex-row gap-6">
+		<div class="w-full md:w-64 md:flex-shrink-0">
 			if len(templates) == 0 {
 				<p class="text-gray-400 text-sm py-4">No commands yet. Add some in the Manage tab.</p>
 			} else {
