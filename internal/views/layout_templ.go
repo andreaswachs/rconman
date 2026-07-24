@@ -34,20 +34,33 @@ func Layout(session *auth.Session) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>rconman - Server Management</title><link rel=\"stylesheet\" href=\"/static/app.css\"><script src=\"/static/htmx.min.js\"></script><style>\n\t\t\tbody {\n\t\t\t\tbackground: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);\n\t\t\t\tmin-height: 100vh;\n\t\t\t}\n\t\t\t.navbar-gradient {\n\t\t\t\tbackground: linear-gradient(90deg, rgba(15,23,42,0.95) 0%, rgba(30,41,59,0.95) 100%);\n\t\t\t\tbackdrop-filter: blur(10px);\n\t\t\t\tborder-bottom: 1px solid rgba(148,163,184,0.1);\n\t\t\t}\n\t\t\t.card-modern {\n\t\t\t\tbackground: rgba(30,41,59,0.5);\n\t\t\t\tborder: 1px solid rgba(148,163,184,0.1);\n\t\t\t\ttransition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);\n\t\t\t}\n\t\t\t.card-modern:hover {\n\t\t\t\tbackground: rgba(30,41,59,0.7);\n\t\t\t\tborder-color: rgba(148,163,184,0.3);\n\t\t\t\tbox-shadow: 0 20px 25px -5px rgba(0,0,0,0.3);\n\t\t\t\ttransform: translateY(-2px);\n\t\t\t}\n\t\t\tsvg[class*=\"w-\"] {\n\t\t\t\tflex-shrink: 0;\n\t\t\t}\n\t\t\t.htmx-indicator {\n\t\t\t\topacity: 0;\n\t\t\t\ttransition: opacity 200ms ease-in;\n\t\t\t}\n\t\t\t.htmx-request .htmx-indicator {\n\t\t\t\topacity: 1;\n\t\t\t}\n\t\t\t.tab-active {\n\t\t\t\tbackground: rgba(59,130,246,0.2);\n\t\t\t\tborder-color: rgba(59,130,246,0.5);\n\t\t\t}\n\t\t</style></head><body><nav class=\"navbar navbar-gradient sticky top-0 z-50\"><div class=\"navbar-start\"><a href=\"/\" class=\"flex items-center gap-3 hover:opacity-80 transition-opacity\"><div class=\"w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-600 rounded-lg flex items-center justify-center\"><svg class=\"w-5 h-5 text-white\" fill=\"currentColor\" viewBox=\"0 0 20 20\"><path d=\"M13 7H7v6h6V7z\"></path></svg></div><span class=\"text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent\">rconman</span></a></div><div class=\"navbar-end gap-4\"><div class=\"flex items-center gap-2 px-3 py-2 rounded-lg bg-base-300 bg-opacity-50\"><svg class=\"w-4 h-4 text-gray-400\" fill=\"currentColor\" viewBox=\"0 0 20 20\"><path d=\"M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z\"></path></svg> <span class=\"text-sm text-gray-300\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>rconman - Server Management</title><link rel=\"stylesheet\" href=\"/static/app.css\"><script src=\"/static/htmx.min.js\"></script><style>\n\t\t\tbody {\n\t\t\t\tbackground: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);\n\t\t\t\tmin-height: 100vh;\n\t\t\t}\n\t\t\t.navbar-gradient {\n\t\t\t\tbackground: linear-gradient(90deg, rgba(15,23,42,0.95) 0%, rgba(30,41,59,0.95) 100%);\n\t\t\t\tbackdrop-filter: blur(10px);\n\t\t\t\tborder-bottom: 1px solid rgba(148,163,184,0.1);\n\t\t\t}\n\t\t\t.card-modern {\n\t\t\t\tbackground: rgba(30,41,59,0.5);\n\t\t\t\tborder: 1px solid rgba(148,163,184,0.1);\n\t\t\t\ttransition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);\n\t\t\t}\n\t\t\t.card-modern:hover {\n\t\t\t\tbackground: rgba(30,41,59,0.7);\n\t\t\t\tborder-color: rgba(148,163,184,0.3);\n\t\t\t\tbox-shadow: 0 20px 25px -5px rgba(0,0,0,0.3);\n\t\t\t\ttransform: translateY(-2px);\n\t\t\t}\n\t\t\tsvg[class*=\"w-\"] {\n\t\t\t\tflex-shrink: 0;\n\t\t\t}\n\t\t\t.htmx-indicator {\n\t\t\t\topacity: 0;\n\t\t\t\ttransition: opacity 200ms ease-in;\n\t\t\t}\n\t\t\t.htmx-request .htmx-indicator {\n\t\t\t\topacity: 1;\n\t\t\t}\n\t\t\t.tab-active {\n\t\t\t\tbackground: rgba(59,130,246,0.2);\n\t\t\t\tborder-color: rgba(59,130,246,0.5);\n\t\t\t}\n\t\t</style></head><body><nav class=\"navbar navbar-gradient sticky top-0 z-50\"><div class=\"navbar-start\"><a href=\"/\" class=\"flex items-center gap-3 hover:opacity-80 transition-opacity\"><div class=\"w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-600 rounded-lg flex items-center justify-center\"><svg class=\"w-5 h-5 text-white\" fill=\"currentColor\" viewBox=\"0 0 20 20\"><path d=\"M13 7H7v6h6V7z\"></path></svg></div><span class=\"text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent\">rconman</span> <span class=\"text-xs text-gray-500 font-mono\">v")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var2 string
-		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(session.Email)
+		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(version.Version)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/layout.templ`, Line: 67, Col: 56}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/layout.templ`, Line: 62, Col: 69}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</span></div><form method=\"POST\" action=\"/auth/logout\" class=\"m-0\"><button type=\"submit\" class=\"btn btn-sm btn-ghost hover:bg-base-300\">Logout</button></form></div></nav><main class=\"min-h-screen\"><div class=\"container mx-auto px-4 py-8\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</span></a></div><div class=\"navbar-end gap-4\"><div class=\"flex items-center gap-2 px-3 py-2 rounded-lg bg-base-300 bg-opacity-50\"><svg class=\"w-4 h-4 text-gray-400\" fill=\"currentColor\" viewBox=\"0 0 20 20\"><path d=\"M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z\"></path></svg> <span class=\"text-sm text-gray-300\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var3 string
+		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(session.Email)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/layout.templ`, Line: 68, Col: 56}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</span></div><form method=\"POST\" action=\"/auth/logout\" class=\"m-0\"><button type=\"submit\" class=\"btn btn-sm btn-ghost hover:bg-base-300\">Logout</button></form></div></nav><main class=\"min-h-screen\"><div class=\"container mx-auto px-4 py-8\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -55,20 +68,7 @@ func Layout(session *auth.Session) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div></main><footer class=\"border-t border-base-300 border-opacity-20 py-8 mt-20 text-center text-gray-500 text-sm\"><p>rconman v")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var3 string
-		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(version.Version)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/layout.templ`, Line: 80, Col: 32}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, " © 2026</p></footer></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</div></main><footer class=\"border-t border-base-300 border-opacity-20 py-8 mt-20 text-center text-gray-500 text-sm\"><p>rconman © 2026</p></footer></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
