@@ -75,11 +75,11 @@ templ ServerSelectorPartial(selectedServerID string, servers []config.ServerDef,
 				for _, server := range servers {
 					<li>
 						<button
-							data-server-id={ server.ID }
+							data-sel-server-id={ server.ID }
 							hx-get={ fmt.Sprintf("/partials/server/%s", server.ID) }
 							hx-target="#server-content"
 							hx-swap="innerHTML"
-							onclick="window.selectedServer=this.dataset.serverId; htmx.ajax('GET', '/partials/selector?selected=' + this.dataset.serverId, { target: '#server-selector', swap: 'innerHTML' })"
+							onclick="window.selectedServer=this.dataset.selServerId; htmx.ajax('GET', '/partials/selector?selected=' + this.dataset.selServerId, { target: '#server-selector', swap: 'innerHTML' })"
 							class="flex items-center gap-2 w-full"
 						>
 							<span class={ fmt.Sprintf("w-2 h-2 rounded-full %s", dotClass(statuses[server.ID])) }></span>
@@ -412,7 +412,7 @@ templ ManageCommandsPartial(session *auth.Session, serverID string, templates []
 
 templ TemplateFormPartial(serverID string, template *store.StoredTemplate) {
 	<div class="card bg-base-200 bg-opacity-50 border border-blue-400 mb-6">
-		<div class="card-body" data-server-id={ serverID } data-template-id={ templateIDStr(template) } data-params={ templateParamsJSON(template) }>
+		<div class="card-body" data-template-form data-server-id={ serverID } data-template-id={ templateIDStr(template) } data-params={ templateParamsJSON(template) }>
 			<h3 class="card-title text-lg text-white">
 				if template != nil {
 					Edit Template
@@ -465,7 +465,7 @@ templ TemplateFormPartial(serverID string, template *store.StoredTemplate) {
 		if (!window._templateState) {
 			window._templateState = { counter: 0 };
 		}
-		var card = document.querySelector("[data-server-id]");
+		var card = document.querySelector("[data-template-form]");
 		var serverID = card.dataset.serverId;
 		var templateID = card.dataset.templateId || null;
 		window._templateState.counter = 0;
