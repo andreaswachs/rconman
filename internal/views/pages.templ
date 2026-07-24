@@ -482,9 +482,23 @@ templ PlayersTabPartial(session *auth.Session, serverID string) {
 						<div class="grid grid-cols-2 gap-2">
 							@playerAction(serverID, "op {{player}}", "OP", "btn-primary")
 							@playerAction(serverID, "deop {{player}}", "Deop", "btn-ghost")
-						</div>
 					</div>
-				</details>
+				</div>
+			</details>
+			<script>
+				function syncTarget() {
+					const player = document.getElementById('player-select')?.value;
+					const target = document.getElementById('target-select');
+					if (!player || !target) return;
+					Array.from(target.options).forEach(opt => {
+						opt.hidden = opt.value === player;
+						if (opt.hidden && target.value === player) target.value = '';
+					});
+				}
+				document.getElementById('player-select')?.addEventListener('change', syncTarget);
+				document.getElementById('target-select')?.addEventListener('htmx:afterSwap', syncTarget);
+				syncTarget();
+			</script>
 			}
 		</div>
 	</div>
