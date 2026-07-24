@@ -244,13 +244,15 @@ templ paramInput(serverID string, param config.TemplateParam) {
 			<span class="label-text text-xs text-gray-300">{ param.Name }</span>
 		</label>
 		if param.Type == "player" {
-			<select name={ param.Name } class="select select-bordered select-sm w-full text-sm"
-				hx-get={ fmt.Sprintf("/partials/server/%s/players", serverID) }
+			<div
+				hx-get={ fmt.Sprintf("/partials/server/%s/players?param=%s", serverID, param.Name) }
 				hx-trigger="load, every 10s"
 				hx-swap="innerHTML"
 			>
-				<option value="">Loading players...</option>
-			</select>
+				<select name={ param.Name } class="select select-bordered select-sm w-full text-sm">
+					<option value="">Loading players...</option>
+				</select>
+			</div>
 		} else if param.Type == "list" && len(param.Options) > 0 {
 			<select name={ param.Name } class="select select-bordered select-sm w-full text-sm">
 				for _, opt := range param.Options {
@@ -324,10 +326,16 @@ templ CommandResponsePartial(status string, response string, errMsg string, dura
 	}
 }
 
-templ PlayerOptionsPartial(players []string) {
-	for _, p := range players {
-		<option value={ p }>{ p }</option>
-	}
+templ PlayerOptionsPartial(paramName string, players []string) {
+	<select name={ paramName } class="select select-bordered select-sm w-full text-sm">
+		if len(players) == 0 {
+			<option value="">No players online</option>
+		} else {
+			for _, p := range players {
+				<option value={ p }>{ p }</option>
+			}
+		}
+	</select>
 }
 
 templ PowerPartial(serverID string, desiredState string) {

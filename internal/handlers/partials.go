@@ -142,6 +142,7 @@ func (h *PartialHandler) StatusPartial(w http.ResponseWriter, r *http.Request) {
 
 func (h *PartialHandler) PlayersPartial(w http.ResponseWriter, r *http.Request) {
 	serverID := chi.URLParam(r, "id")
+	paramName := r.URL.Query().Get("param")
 	status := h.cache.Get(serverID)
 	players := status.Players
 	if players == nil {
@@ -149,7 +150,7 @@ func (h *PartialHandler) PlayersPartial(w http.ResponseWriter, r *http.Request) 
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	views.PlayerOptionsPartial(players).Render(r.Context(), w)
+	views.PlayerOptionsPartial(paramName, players).Render(r.Context(), w)
 }
 
 func (h *PartialHandler) LogPartial(w http.ResponseWriter, r *http.Request) {
