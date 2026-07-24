@@ -451,21 +451,21 @@ templ PlayersTabPartial(session *auth.Session, serverID string) {
 							<label class="label">
 								<span class="label-text text-xs text-gray-300">Target</span>
 							</label>
-							<select name="target" class="select select-bordered select-sm w-full text-sm"
-								hx-get={ fmt.Sprintf("/partials/server/%s/player-options", serverID) }
-								hx-trigger="load, every 10s"
-								hx-target="this"
-								hx-swap="innerHTML"
-							>
-								<option value="">Loading players...</option>
-							</select>
-						</div>
-						<form
-							hx-post={ fmt.Sprintf("/api/commands/%s", serverID) }
-							hx-include="#player-select"
-							hx-target="#player-response"
+						<select id="target-select" name="target" class="select select-bordered select-sm w-full text-sm"
+							hx-get={ fmt.Sprintf("/partials/server/%s/player-options", serverID) }
+							hx-trigger="load, every 10s"
+							hx-target="this"
 							hx-swap="innerHTML"
-							hx-disabled-elt="find button"
+						>
+							<option value="">Loading players...</option>
+						</select>
+					</div>
+					<form
+						hx-post={ fmt.Sprintf("/api/commands/%s", serverID) }
+						hx-include="#player-select, #target-select"
+						hx-target="#player-response"
+						hx-swap="innerHTML"
+						hx-disabled-elt="find button"
 							class="inline"
 						>
 							<input type="hidden" name="command_template" value={ "tp {{player}} {{target}}" }/>

@@ -1461,14 +1461,14 @@ func PlayersTabPartial(session *auth.Session, serverID string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 111, "</div></div></details> <details class=\"rounded-lg border border-base-300 bg-base-200 bg-opacity-50\"><summary class=\"cursor-pointer px-4 py-2 text-sm font-semibold text-gray-300 select-none\">Teleport</summary><div class=\"px-4 pb-4 pt-2\"><div class=\"flex flex-col sm:flex-row gap-2 items-end\"><div class=\"flex-1 w-full\"><label class=\"label\"><span class=\"label-text text-xs text-gray-300\">Target</span></label> <select name=\"target\" class=\"select select-bordered select-sm w-full text-sm\" hx-get=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 111, "</div></div></details> <details class=\"rounded-lg border border-base-300 bg-base-200 bg-opacity-50\"><summary class=\"cursor-pointer px-4 py-2 text-sm font-semibold text-gray-300 select-none\">Teleport</summary><div class=\"px-4 pb-4 pt-2\"><div class=\"flex flex-col sm:flex-row gap-2 items-end\"><div class=\"flex-1 w-full\"><label class=\"label\"><span class=\"label-text text-xs text-gray-300\">Target</span></label> <select id=\"target-select\" name=\"target\" class=\"select select-bordered select-sm w-full text-sm\" hx-get=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var78 string
 		templ_7745c5c3_Var78, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/partials/server/%s/player-options", serverID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `pages.templ`, Line: 455, Col: 76}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `pages.templ`, Line: 455, Col: 75}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var78))
 		if templ_7745c5c3_Err != nil {
@@ -1481,13 +1481,13 @@ func PlayersTabPartial(session *auth.Session, serverID string) templ.Component {
 		var templ_7745c5c3_Var79 string
 		templ_7745c5c3_Var79, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/api/commands/%s", serverID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `pages.templ`, Line: 464, Col: 58}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `pages.templ`, Line: 464, Col: 57}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var79))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 113, "\" hx-include=\"#player-select\" hx-target=\"#player-response\" hx-swap=\"innerHTML\" hx-disabled-elt=\"find button\" class=\"inline\"><input type=\"hidden\" name=\"command_template\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 113, "\" hx-include=\"#player-select, #target-select\" hx-target=\"#player-response\" hx-swap=\"innerHTML\" hx-disabled-elt=\"find button\" class=\"inline\"><input type=\"hidden\" name=\"command_template\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
