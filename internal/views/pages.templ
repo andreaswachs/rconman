@@ -17,18 +17,16 @@ templ HomePage(session *auth.Session, servers []config.ServerDef) {
 			</div>
 		} else {
 			<div>
-				<script>window.selectedServer = { fmt.Sprintf("%q", servers[0].ID) };</script>
 				<div id="server-selector"
 					hx-get="/partials/selector"
 					hx-trigger="load, every 10s"
-					hx-vals='js:{selected: window.selectedServer}'
 					hx-swap="innerHTML"
 				>
 					<div class="flex items-center gap-2 text-gray-400 text-sm py-2">
 						<span class="loading loading-dots loading-sm"></span>
 					</div>
 				</div>
-				<div id="server-content" hx-get={ fmt.Sprintf("/partials/server/%s", servers[0].ID) } hx-trigger="load" hx-swap="innerHTML">
+				<div id="server-content">
 					<div class="flex items-center justify-center py-12">
 						<span class="loading loading-dots loading-md text-blue-400"></span>
 					</div>
@@ -89,6 +87,12 @@ templ ServerSelectorPartial(selectedServerID string, servers []config.ServerDef,
 				}
 			</ul>
 		</div>
+		<script>
+			if (!window._serverContentLoaded) {
+				window._serverContentLoaded = true;
+				htmx.ajax("GET", { fmt.Sprintf("%q", fmt.Sprintf("/partials/server/%s", selectedServerID)) }, { target: "#server-content", swap: "innerHTML" });
+			}
+		</script>
 	</div>
 }
 

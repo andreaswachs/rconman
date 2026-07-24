@@ -65,13 +65,22 @@ func (h *PartialHandler) ServerSelectorPartial(w http.ResponseWriter, r *http.Re
 
 	servers := h.config.Minecraft.Servers
 	selected := r.URL.Query().Get("selected")
-	if selected == "" && len(servers) > 0 {
-		selected = servers[0].ID
-	}
 
 	statuses := make(map[string]bool, len(servers))
 	for _, s := range servers {
 		statuses[s.ID] = h.cache.Get(s.ID).Online
+	}
+
+	if selected == "" {
+		for _, s := range servers {
+			if statuses[s.ID] {
+				selected = s.ID
+				break
+			}
+		}
+	}
+	if selected == "" && len(servers) > 0 {
+		selected = servers[0].ID
 	}
 
 	sorted := make([]config.ServerDef, len(servers))
