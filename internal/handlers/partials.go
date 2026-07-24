@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"sort"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
@@ -73,8 +74,17 @@ func (h *PartialHandler) ServerSelectorPartial(w http.ResponseWriter, r *http.Re
 		statuses[s.ID] = h.cache.Get(s.ID).Online
 	}
 
+	sorted := make([]config.ServerDef, len(servers))
+	copy(sorted, servers)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		if statuses[sorted[i].ID] != statuses[sorted[j].ID] {
+			return statuses[sorted[i].ID]
+		}
+		return sorted[i].Name < sorted[j].Name
+	})
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	views.ServerSelectorPartial(selected, servers, statuses).Render(r.Context(), w)
+	views.ServerSelectorPartial(selected, sorted, statuses).Render(r.Context(), w)
 }
 
 func (h *PartialHandler) CommandsPartial(w http.ResponseWriter, r *http.Request) {
