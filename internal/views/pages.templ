@@ -243,15 +243,14 @@ templ paramInput(serverID string, param config.TemplateParam) {
 			<span class="label-text text-xs text-gray-300">{ param.Name }</span>
 		</label>
 		if param.Type == "player" {
-			<div
+			<select name={ param.Name } class="select select-bordered select-sm w-full text-sm"
 				hx-get={ fmt.Sprintf("/partials/server/%s/players?param=%s", serverID, param.Name) }
 				hx-trigger="load, every 10s"
-				hx-swap="innerHTML"
+				hx-target="this"
+				hx-swap="outerHTML"
 			>
-				<select name={ param.Name } class="select select-bordered select-sm w-full text-sm">
-					<option value="">Loading players...</option>
-				</select>
-			</div>
+				<option value="">Loading players...</option>
+			</select>
 		} else if param.Type == "list" && len(param.Options) > 0 {
 			<select name={ param.Name } class="select select-bordered select-sm w-full text-sm">
 				for _, opt := range param.Options {
