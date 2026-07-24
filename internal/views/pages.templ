@@ -434,10 +434,11 @@ templ PlayersTabPartial(session *auth.Session, serverID string) {
 			<details class="rounded-lg border border-base-300 bg-base-200 bg-opacity-50">
 				<summary class="cursor-pointer px-4 py-2 text-sm font-semibold text-gray-300 select-none">Gamemode</summary>
 				<div class="px-4 pb-4 pt-2">
-					<div class="grid grid-cols-3 gap-2">
+					<div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
 						@playerAction(serverID, "gamemode survival {{player}}", "Survival", "btn-ghost")
 						@playerAction(serverID, "gamemode creative {{player}}", "Creative", "btn-ghost")
 						@playerAction(serverID, "gamemode adventure {{player}}", "Adventure", "btn-ghost")
+						@playerAction(serverID, "gamemode spectator {{player}}", "Spectator", "btn-ghost")
 					</div>
 				</div>
 			</details>
