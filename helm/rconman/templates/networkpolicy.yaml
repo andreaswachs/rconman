@@ -40,7 +40,7 @@ spec:
     - ports:
         - port: 443
           protocol: TCP
-    {{- range .Values.minecraft.servers }}
+    {{- range .Values.config.minecraft.servers }}
     {{- if .networkPolicy }}
     # RCON egress for server: {{ .name }}
     - to:

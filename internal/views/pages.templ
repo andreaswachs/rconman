@@ -473,8 +473,10 @@ templ TemplateFormPartial(serverID string, template *store.StoredTemplate) {
 		// Pre-fill existing params if editing
 		var existingParams = JSON.parse(card.dataset.params || "[]");
 		existingParams.forEach(function(p) {
-			var opts = (p.options || []).join(",");
-			addParamRow(p.name, p.type, opts);
+			var name = p.name || p.Name;
+			var type = p.type || p.Type;
+			var opts = (p.options || p.Options || []).join(",");
+			addParamRow(name, type, opts);
 		});
 
 		function addParamRow(name, type, options) {
