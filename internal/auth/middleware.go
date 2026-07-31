@@ -117,19 +117,26 @@ func GetSessionFromContext(r *http.Request) (*Session, bool) {
 }
 
 // AuthCodeURL generates a PKCE authorization URL and stores the verifier in a short-lived cookie.
+// An existing unexpired verifier is reused so concurrent /auth/login hits (e.g. unauthenticated
+// partial requests) don't invalidate an in-flight authorization flow.
 func (m *Middleware) AuthCodeURL(w http.ResponseWriter, r *http.Request) string {
-	verifier := oauth2.GenerateVerifier()
+	verifier := ""
+	if c, err := r.Cookie("pkce_verifier"); err == nil {
+		verifier = c.Value
+	}
+	if verifier == "" {
+		verifier = oauth2.GenerateVerifier()
+		http.SetCookie(w, &http.Cookie{
+			Name:     "pkce_verifier",
+			Value:    verifier,
+			Path:     "/",
+			MaxAge:   600,
+			HttpOnly: true,
+			Secure:   !m.insecureMode,
+			SameSite: http.SameSiteLaxMode,
+		})
+	}
 	url := m.config.AuthCodeURL("state", oauth2.S256ChallengeOption(verifier))
-
-	http.SetCookie(w, &http.Cookie{
-		Name:     "pkce_verifier",
-		Value:    verifier,
-		Path:     "/",
-		MaxAge:   600,
-		HttpOnly: true,
-		Secure:   !m.insecureMode,
-		SameSite: http.SameSiteLaxMode,
-	})
 
 	return url
 }
