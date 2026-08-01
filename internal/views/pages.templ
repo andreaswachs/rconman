@@ -21,6 +21,7 @@ templ HomePage(session *auth.Session, servers []config.ServerDef) {
 				hx-get="/partials/selector"
 				hx-trigger="load, every 10s"
 				hx-swap="innerHTML"
+				hx-vals='js:{selected: document.querySelector("#server-selector [data-selected-server]")?.dataset.selectedServer || ""}'
 				hx-on::after-swap="if (!window._serverContentLoaded) { window._serverContentLoaded = true; var sel = event.target.querySelector('[data-selected-server]'); if (sel) htmx.ajax('GET', '/partials/server/' + sel.dataset.selectedServer, { target: '#server-content', swap: 'innerHTML' }); }"
 			>
 					<div class="flex items-center gap-2 text-gray-400 text-sm py-2">
@@ -64,12 +65,12 @@ func serverName(servers []config.ServerDef, id string) string {
 
 templ ServerSelectorPartial(selectedServerID string, servers []config.ServerDef, statuses map[string]bool) {
 	<div class="flex items-center gap-4 mb-6" data-selected-server={ selectedServerID }>
-		<div class="dropdown">
-			<div tabindex="0" role="button" class="btn btn-sm border border-base-300 gap-2 w-56 justify-start">
+		<details class="dropdown">
+			<summary class="btn btn-sm border border-base-300 gap-2 w-56 justify-start">
 				<span class={ fmt.Sprintf("w-2 h-2 rounded-full %s", dotClass(statuses[selectedServerID])) }></span>
 				<span>{ serverName(servers, selectedServerID) }</span>
 				<svg class="w-3 h-3 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-			</div>
+			</summary>
 			<ul class="dropdown-content menu bg-base-200 rounded-box z-10 w-56 p-2 shadow-lg border border-base-300">
 				for _, server := range servers {
 					<li>
@@ -78,7 +79,7 @@ templ ServerSelectorPartial(selectedServerID string, servers []config.ServerDef,
 							hx-get={ fmt.Sprintf("/partials/server/%s", server.ID) }
 							hx-target="#server-content"
 							hx-swap="innerHTML"
-							onclick="window.selectedServer=this.dataset.selServerId; htmx.ajax('GET', '/partials/selector?selected=' + this.dataset.selServerId, { target: '#server-selector', swap: 'innerHTML' })"
+							onclick="event.currentTarget.closest('details')?.removeAttribute('open'); window.selectedServer=this.dataset.selServerId; htmx.ajax('GET', '/partials/selector?selected=' + this.dataset.selServerId, { target: '#server-selector', swap: 'innerHTML' })"
 							class="flex items-center gap-2 w-full"
 						>
 							<span class={ fmt.Sprintf("w-2 h-2 rounded-full %s", dotClass(statuses[server.ID])) }></span>
@@ -87,7 +88,7 @@ templ ServerSelectorPartial(selectedServerID string, servers []config.ServerDef,
 					</li>
 				}
 			</ul>
-		</div>
+		</details>
 	</div>
 }
 
